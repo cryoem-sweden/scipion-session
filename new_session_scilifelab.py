@@ -40,11 +40,13 @@ from pyworkflow.manager import Manager
 from pyworkflow.gui import Message, Icon
 from pyworkflow.config import ProjectSettings
 import pyworkflow.em as em
-
 import pyworkflow.gui as pwgui
 from pyworkflow.gui.project.base import ProjectBaseWindow
 from pyworkflow.gui.widgets import HotButton, Button
-import subprocess
+from pyworkflow.gui import Window, Message, Color
+
+from model.users import loadUsers
+
 
 VIEW_WIZARD = 'wizardview'
 
@@ -66,6 +68,8 @@ DATA_FOLDER = 'DATA_FOLDER'
 USER_NAME = 'USER_NAME'
 SAMPLE_NAME = 'SAMPLE_NAME'
 PROJECT_NAME = 'PROJECT_NAME'
+PROJECT_TYPE = 'PROJECT_TYPE'
+
 SCIPION_PROJECT = 'SCIPION_PROJECT'
 FRAMES_RANGE = 'FRAMES_RANGE'
 MICROSCOPE = 'MICROSCOPE'
@@ -88,6 +92,7 @@ LABELS = {
     SAMPLE_NAME: "Sample name",
     DATA_BACKUP: 'Data Backup Dir',
     PROJECT_NAME: "Project ID",
+    PROJECT_TYPE: "Project Type",
     SCIPION_PROJECT: "Scipion project",
     FRAMES_RANGE: "Frames range",
 
@@ -108,6 +113,86 @@ USER_GROUPS = ['cem', 'dbb', 'fac', 'int']
 PROJECT_REGEX = re.compile("(%s)(\d{5})$" % ('|'.join(USER_GROUPS)))
 
 
+class Data():
+    STAFF = ['marta.carroni@scilifelab.se',
+             'julian.conrad@scilifelab.se']
+
+    PROJECT_TYPES = ['National Facility Project',
+                     'Internal Project']
+
+    def __init__(self):
+        self._users = loadUsers()
+        self._usersDict = {}
+        for u in self._users:
+            self._usersDict[u.email.get()] = u
+            u.isStaff = self._isUserStaff(u)
+            u.group = self._getUserGroup(u)
+
+        # Keep a configuration of user, project-type and project
+        self.user = None
+        self.projectType = None
+        self.projectId = None
+        self.group = None
+
+    def _isUserStaff(self, user):
+        return user.email.get() in self.STAFF
+
+    def _getUserGroup(self, user):
+        email = user.email.get()
+
+        if not self._isUserStaff(user):
+            if email.endswith('scilifelab.se'):
+                return 'sll'
+
+            if email.endswith('dbb.su.se'):
+                return 'dbb'
+
+        return 'fac'
+
+    def getUserStringList(self):
+        usList = []
+
+        def _getStr(u):
+            return "%s  -  %s" % (u.name.get(), u.email.get())
+
+        # Add stuff personnel first
+        for email in self.STAFF:
+            usList.append(_getStr(self._usersDict[email]))
+        # Add other users
+        for u in self._users:
+            if u.email.get() not in self.STAFF:
+                usList.append(_getStr(u))
+
+        return usList
+
+    def getUserFromStr(self, userStr):
+        name, email = userStr.split('-')
+        return self._usersDict[email.strip()]
+
+    def selectUser(self, user):
+        self.user = user
+        self.projectType = None if user.isStaff else self.PROJECT_TYPES[1]
+
+    def selectProjectType(self, projType):
+        self.projectType = projType
+        if not self.user.isStaff:
+            raise Exception("Project type only can be selected for "
+                            "STAFF users.")
+        self.group = 'cem' if self.isNational() else self.user.group
+
+    def isNational(self):
+        return self.projectType == self.PROJECT_TYPES[0]
+
+    def getDataFolder(self):
+        return '/data/staging/%s/' % self.group
+
+    def getProjectId(self):
+        if self.isNational():
+            return 'cem00004' # grab this from the portalen
+        else:
+            # Grab this from the log of sessions
+            return '%s%05d' % (self.group, 3)
+
 
 class BoxWizardWindow(ProjectBaseWindow):
     """ Windows to manage all projects. """
@@ -124,17 +209,56 @@ class BoxWizardWindow(ProjectBaseWindow):
         self.generalCfg = settings.getConfig()
 
         self.config = config
+        self.data = Data()
         ProjectBaseWindow.__init__(self, title, minsize=(400, 550), **kwargs)
         self.viewFuncs = {VIEW_WIZARD: BoxWizardView}
         self.manager = Manager()
         self.switchView(VIEW_WIZARD)
 
+    def createHeaderFrame(self, parent):
+
+        """ Create the Header frame at the top of the windows.
+        It has (from left to right):
+            - Main application Logo
+            - Project Name
+            - View selection combobox
+        """
+        # Create the Project Name label
+        self.projNameFont = tkFont.Font(size=-28, family='helvetica')
+        self.projNameFontBold = tkFont.Font(size=-28, family='helvetica',
+                                            weight='bold')
+
+        header = tk.Frame(parent, bg='black')
+        header.columnconfigure(0, weight=1)
+        header.columnconfigure(1, weight=1)
+        #header.columnconfigure(2, weight=1)
+        # Create the SCIPION logo label
+        cwd = os.getcwd()
+        logoPath = os.path.join(cwd, 'resources', 'scilifelab-logo.png')
+        logoImg = self.getImage(logoPath, maxheight=50)
+
+        # SciLifeLab logo in the header
+        headerImg = tk.Label(header, image=logoImg,
+                             borderwidth=0, bg='black')
+        headerImg.grid(row=0, column=0, sticky='nw', padx=(10, 0), pady=10)
+
+        # Swedish National Cryo-EM Facility
+        headerText = tk.Label(header, borderwidth=0, bg='black',
+                             text='Swedish National Cryo-EM Facility',
+                             fg='white',
+                             font=self.projNameFontBold)
+        headerText.grid(row=0, column=1, sticky='se',
+                        padx=(5, 15), pady=(20, 5))
+
+        return header
+
 
 class BoxWizardView(tk.Frame):
     def __init__(self, parent, windows, **kwargs):
-        tk.Frame.__init__(self, parent, bg='white', **kwargs)
+        tk.Frame.__init__(self, parent, **kwargs)
         self.windows = windows
         self.manager = windows.manager
+        self.data = windows.data
         self.root = windows.root
         self.vars = {}
         self.checkvars = []
@@ -155,6 +279,8 @@ class BoxWizardView(tk.Frame):
         self.projDelFont = tkFont.Font(size=smallSize, family=fontName,
                                        weight='bold')
         self.manager = Manager()
+
+
 
         # Header section
         headerFrame = tk.Frame(self, bg='white')
@@ -194,16 +320,75 @@ class BoxWizardView(tk.Frame):
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
 
-    def _fillContent(self, frame):
-        labelFrame = tk.LabelFrame(frame, text=' General ', bg='white',
-                                   font=self.bigFontBold)
-        labelFrame.grid(row=0, column=0, sticky='nw', padx=20)
+    def _storeVarWidgets(self, key, var, widget):
+        self.vars[key] = (var, widget)
 
-        def _addPair(key, r, lf, widget='entry', traceCallback=None, mouseBind=False):
+    def _getVar(self, key):
+        v, _ = self.vars[key]
+        return v
+
+    def _getVarValue(self, key):
+        return self._getVar(key).get()
+
+    def _setVarValue(self, key, value):
+        return self._getVar(key).set(value)
+
+    def _showWidgets(self, key, value):
+        _, widget = self.vars[key]
+        print "_showWidget: key=%s, value=%s" % (key, value)
+        if value:
+            widget.grid(sticky='news')
+        else:
+            widget.grid_forget()
+
+    def _fillContent(self, content):
+        tab = ttk.Notebook(content)  # , style='W.TNotebook')
+        tab.grid(row=0, column=0, sticky='news', padx=10, pady=10)
+
+        content.rowconfigure(0, weight=1)
+        content.columnconfigure(0, weight=1)
+
+        self._lastRow = 0
+        self._lastFrame = None
+
+        def _createTabFrame(text):
+            lf = tk.LabelFrame(tab, text=text, font=self.bigFontBold)
+            tab.add(lf, text=text, sticky='news', padding=10)
+            self._lastFrame = lf
+            return lf
+
+        def _newRow():
+            v = self._lastRow
+            self._lastRow += 1
+            return v
+
+        def _getContainerFrame(**kwargs):
+            """ Request for a new row and create two frames, one to hold the
+            row position and another one that can be show/hidden.
+            """
+            lf = self._lastFrame
+            r = _newRow()
+            parent = tk.Frame(lf)
+            parent.grid(row=r, sticky='news')
+            parent.columnconfigure(0, weight=1)
+            parent.rowconfigure(0, weight=1)
+
+            frame = tk.Frame(parent)
+            frame.grid(row=0, sticky='news')
+            frame.columnconfigure(0, minsize=180)
+            frame.columnconfigure(1, weight=1)
+
+            if not kwargs.get('visible', True):
+                frame.grid_forget()
+
+            return frame
+
+        def _addPair(key, widget='entry', **kwargs):
+            frame = _getContainerFrame(**kwargs)
+
             t = LABELS.get(key, key)
-            label = tk.Label(lf, text=t, bg='white',
-                             font=self.bigFont)
-            label.grid(row=r, column=0, padx=(10, 5), pady=2, sticky='ne')
+            label = tk.Label(frame, text=t, font=self.bigFont)
+            label.grid(row=0, column=0, padx=(10, 5), pady=2, sticky='ne')
 
             if not widget:
                 return
@@ -211,77 +396,96 @@ class BoxWizardView(tk.Frame):
             var = tk.StringVar()
 
             if widget == 'entry':
-                widget = tk.Entry(lf, width=30, font=self.bigFont,
+                widget = tk.Entry(frame, width=30, font=self.bigFont,
                                  textvariable=var)
+                traceCallback = kwargs.get('traceCallback', None)
+                mouseBind = kwargs.get('mouseBind', None)
+
                 if traceCallback:
                     if mouseBind: #call callback on click
                         widget.bind("<Button-1>", traceCallback, "eee")
                     else:#call callback on type
                         var.trace('w', traceCallback)
             elif widget == 'label':
-                widget = tk.Label(lf, font=self.bigFont, textvariable=var)
+                widget = tk.Label(frame, font=self.bigFont, textvariable=var)
 
-            self.vars[key] = var
-            widget.grid(row=r, column=1, sticky='nw', padx=(5, 10), pady=2)
+            widget.grid(row=0, column=1, sticky='nw', padx=(5, 10), pady=2)
 
-        def _addCheckPair(key, r, lf, col=1):
+            self._storeVarWidgets(key, var, frame)
+
+        def _addCheckPair(key, col=1):
+            lf = self._lastFrame
+            r = _newRow() if col == 1 else self._lastRow
             t = LABELS.get(key, key)
             var = tk.IntVar()
 
-            cb = tk.Checkbutton(lf, text=t, font=self.bigFont, bg='white',
-                                variable=var)
-            self.vars[key] = var
+            cb = tk.Checkbutton(lf, text=t, font=self.bigFont, variable=var)
             self.checkvars.append(key)
             cb.grid(row=r, column=col, padx=5, sticky='nw')
+            self._storeVarWidgets(key, var, cb)
 
-        def _addComboPair(key, r, lf, traceCallback=None):
+        def _addComboPair(key, **kwargs):
             t = LABELS.get(key, key)
-            label = tk.Label(lf, text=t, bg='white',
-                             font=self.bigFont)
-            label.grid(row=r, column=0, padx=(10, 5), pady=2, sticky='ne')
+            frame = _getContainerFrame(**kwargs)
+            label = tk.Label(frame, text=t, font=self.bigFont)
+            label.grid(row=0, column=0, padx=(10, 5), pady=2, sticky='ne')
 
             var = tk.StringVar()
-            combo = ttk.Combobox(lf, textvariable=var, state='readonly')
-            combo['values'] = self._getConfig().keys()
+            combo = ttk.Combobox(frame, textvariable=var, state='readonly',
+                                 width=40)
+            values = kwargs.get('values', None)
+            combo['values'] = values or self._getConfig().keys()
+
+            traceCallback = kwargs.get('traceCallback', None)
 
             if traceCallback:
                 combo.bind('<<ComboboxSelected>>', traceCallback)
-            self.vars[key] = var
-            combo.grid(row=r, column=1, sticky='nw', padx=(5, 10), pady=2)
+
+            combo.grid(row=0, column=1, sticky='nw', padx=(5, 10), pady=(10, 2))
+            self._storeVarWidgets(key, var, frame)
+
 
             return combo
 
-        self.micCombo = _addComboPair(MICROSCOPE, 0, labelFrame,
+        lfProject = _createTabFrame(' Project ')
+        lfProject.columnconfigure(0, weight=1)
+
+        lfProject.columnconfigure(1, weight=1)
+
+        self.userCombo = _addComboPair(USER_NAME,
+                                       values=self.data.getUserStringList(),
+                                       traceCallback=self._onUserChanged)
+        self.projectCombo = _addComboPair(PROJECT_TYPE,
+                                          values=Data.PROJECT_TYPES,
+                                          traceCallback=self._onProjectTypeChanged,
+                                          visible=False)
+
+        _addPair(PROJECT_NAME, widget='entry',
+                 traceCallback=self._onInputChange,
+                 visible=False)
+        _addPair(DATA_FOLDER, widget='label')
+        _addPair(SCIPION_PROJECT, widget='label')
+        _addPair(MESSAGE, widget='label')
+
+        lfSettinglabelFrame = _createTabFrame(' Settings ')
+        self.micCombo = _addComboPair(MICROSCOPE,
                                       traceCallback=self._onMicroscopeChanged)
-        _addPair(PROJECT_NAME, 1, labelFrame, traceCallback=self._onInputChange)
-        _addPair(DATA_FOLDER, 2, labelFrame, widget='label')
-        _addPair(SCIPION_PROJECT, 3, labelFrame, widget='label')
-        _addPair(MESSAGE, 4, labelFrame, widget='label')
 
-
-        labelFrame.columnconfigure(0, weight=1)
-        labelFrame.columnconfigure(0, minsize=120)
-        labelFrame.columnconfigure(1, weight=1)
-
-        labelFrame2 = tk.LabelFrame(frame, text=' Pre-processing ', bg='white',
-                                    font=self.bigFontBold)
-
-        labelFrame2.grid(row=1, column=0, sticky='nw', padx=20, pady=10)
+        labelFrame2 = _createTabFrame(' Pre-processing ')
         labelFrame2.columnconfigure(0, minsize=120)
+        _addPair(FRAMES_RANGE)
+        _addPair(PROTOCOLS, widget=False)
+        _addCheckPair(MOTIONCORR)
+        _addCheckPair(MOTIONCOR2, col=2)
+        _addCheckPair(OPTICAL_FLOW)
+        _addCheckPair(SUMMOVIE)
+        _addCheckPair(CTFFIND4)
+        _addCheckPair(GCTF, col=2)
+        _addPair("Monitors", widget=False)
+        _addCheckPair(EMAIL_NOTIFICATION)
+        _addCheckPair(HTML_REPORT, col=2)
 
-        _addPair(FRAMES_RANGE, 0, labelFrame2)
-        _addPair(PROTOCOLS, 1, labelFrame2, widget=False)
-        _addCheckPair(MOTIONCORR, 1, labelFrame2)
-        _addCheckPair(MOTIONCOR2, 1, labelFrame2, col=2)
-        _addCheckPair(OPTICAL_FLOW, 2, labelFrame2)
-        _addCheckPair(SUMMOVIE, 3, labelFrame2)
-        _addCheckPair(CTFFIND4, 4, labelFrame2)
-        _addCheckPair(GCTF, 4, labelFrame2, col=2)
-        _addPair("Monitors", 5, labelFrame2, widget=False)
-        _addCheckPair(EMAIL_NOTIFICATION, 5, labelFrame2)
-        _addCheckPair(HTML_REPORT, 5, labelFrame2, col=2)
-
-        frame.columnconfigure(0, weight=1)
+        content.columnconfigure(0, weight=1)
 
         self._onInputChange()
 
@@ -291,14 +495,6 @@ class BoxWizardView(tk.Frame):
     def _getConfig(self):
         return self.windows.config
 
-    def _getVar(self, varKey):
-        return self.vars[varKey]
-
-    def _getValue(self, varKey):
-        return self.vars[varKey].get()
-
-    def _setValue(self, varKey, value):
-        return self.vars[varKey].set(value)
 
     def _onAction(self, e=None):
         errors = []
@@ -321,8 +517,8 @@ class BoxWizardView(tk.Frame):
                               % scipionProjPath)
 
         if not errors:
-            if not (self._getValue(MOTIONCORR) or self._getValue(MOTIONCOR2)
-                    or self._getValue(OPTICAL_FLOW)):
+            if not (self._getVarValue(MOTIONCORR) or self._getVarValue(MOTIONCOR2)
+                    or self._getVarValue(OPTICAL_FLOW)):
                 errors.append("You should use at least one alignment method."
                               "(%s or %s)" % (MOTIONCORR, OPTICAL_FLOW))
 
@@ -353,8 +549,8 @@ class BoxWizardView(tk.Frame):
         smtpServer = self._getConfValue(SMTP_SERVER, '')
         smtpFrom = self._getConfValue(SMTP_FROM, '')
         smtpTo = self._getConfValue(SMTP_TO, '')
-        doMail = self._getValue(EMAIL_NOTIFICATION) 
-        doPublish = self._getValue(HTML_REPORT)
+        doMail = self._getVarValue(EMAIL_NOTIFICATION)
+        doPublish = self._getVarValue(HTML_REPORT)
 
         protImport = project.newProtocol(em.ProtImportMovies,
                                          objLabel='Import movies',
@@ -390,15 +586,15 @@ class BoxWizardView(tk.Frame):
 
         _saveProtocol(protImport, movies=False)
 
-        useMC2 = self._getValue(MOTIONCOR2)
-        useMC = self._getValue(MOTIONCORR) or useMC2
-        useOF = self._getValue(OPTICAL_FLOW)
-        useSM = self._getValue(SUMMOVIE)
-        useCTF = self._getValue(CTFFIND4)
-        useGCTF = self._getValue(GCTF)
+        useMC2 = self._getVarValue(MOTIONCOR2)
+        useMC = self._getVarValue(MOTIONCORR) or useMC2
+        useOF = self._getVarValue(OPTICAL_FLOW)
+        useSM = self._getVarValue(SUMMOVIE)
+        useCTF = self._getVarValue(CTFFIND4)
+        useGCTF = self._getVarValue(GCTF)
 
         kwargs = {}
-        frames = self._getValue(FRAMES_RANGE).split()
+        frames = self._getVarValue(FRAMES_RANGE).split()
         if frames:
             kwargs['alignFrame0'] = kwargs['sumFrame0'] = frames[0]
             kwargs['alignFrameN'] = kwargs['sumFrameN'] = frames[1]
@@ -464,12 +660,12 @@ class BoxWizardView(tk.Frame):
     def _replaceVars(self, value):
         newValue = value
         for v in [USER_NAME, SAMPLE_NAME]:
-            newValue = newValue.replace('${%s}' % v, self._getValue(v))
+            newValue = newValue.replace('${%s}' % v, self._getVarValue(v))
 
         return newValue
 
     def _getProjectName(self):
-        return self._getValue(PROJECT_NAME)
+        return self._getVarValue(PROJECT_NAME)
 
     def _validProjectName(self):
         return PROJECT_REGEX.match(self._getProjectName())
@@ -494,7 +690,7 @@ class BoxWizardView(tk.Frame):
         return scipionProj.replace('${PROJECT_NAME}', self._getProjectName())
 
     def _checkInput(self, varKey):
-        value = self._getValue(varKey)
+        value = self._getVarValue(varKey)
 
     def fileDialog(self, * args):
         """callback that display a directory dialog window"""
@@ -506,26 +702,42 @@ class BoxWizardView(tk.Frame):
         backupFolder = tkFileDialog.askdirectory(parent=self.root,
                                                  initialdir=initialdir,
                                                  title='Choose Backup directory')
-        self._setValue(DATA_BACKUP, backupFolder)
+        self._setVarValue(DATA_BACKUP, backupFolder)
 
     def _onInputChange(self, *args):
-        if self.microscope is None:
-            msg = 'Select microscope'
-        elif not self._validProjectName():
-            msg = ('Invalid project name. ')
-        else:
-            msg = ''
+        pass
 
-        self._setValue(MESSAGE, msg)
-        self._setValue(DATA_FOLDER, self._getDataFolder())
-        self._setValue(SCIPION_PROJECT, self._getScipionProject())
+    def _updateData(self):
+        self._setVarValue(DATA_FOLDER, self.data.getDataFolder())
+        self._setVarValue(SCIPION_PROJECT, self._getScipionProject())
+
+    def _onUserChanged(self, *args):
+        username = self._getVarValue(USER_NAME)
+        if not username:
+            return
+
+        user = self.data.getUserFromStr(username)
+        self.data.selectUser(user)
+        self._showWidgets(PROJECT_TYPE, user.isStaff)
+        self._updateData()
+
+    def _onProjectTypeChanged(self, *args):
+        projectType = self._getVarValue(PROJECT_TYPE)
+        if not projectType:
+            return
+
+        self.data.selectProjectType(projectType)
+        isNational = self.data.isNational()
+        self._showWidgets(PROJECT_NAME, not isNational)
+        self._updateData()
+
 
     def _onMicroscopeChanged(self, *args):
-        self.microscope = self._getValue(MICROSCOPE)
+        self.microscope = self._getVarValue(MICROSCOPE)
         self.micCombo.selection_clear()
         # Check/uncheck different options
         for key in self.checkvars:
-            self.vars[key].set(int(self._getConfValue(key, 0)))
+            self._setVarValue(key, int(self._getConfValue(key, 0)))
 
         self._onInputChange()
 
