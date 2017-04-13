@@ -11,7 +11,7 @@ class User(DataObject):
     ATTR_STR = ['email', 'name', 'username']
 
 
-def loadUsers(usersCsvFile):
+def loadUsers(usersCsvFile='data/users.csv'):
     """ Load a list of order objects from a given json file.
     """
     dataFile = open(usersCsvFile)

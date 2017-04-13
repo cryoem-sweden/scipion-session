@@ -3,7 +3,7 @@ from model.users import loadUsers
 
 dataFn = 'data/users.csv'
 
-users = loadUsers(dataFn)
+users = loadUsers()
 
 for u in users:
     u.printAll()
