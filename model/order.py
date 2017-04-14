@@ -19,10 +19,6 @@ def loadOrders(jsonFile='data/orders.json'):
 
     data = json.load(dataFile)
 
-    print type(data)
-    for k, v in data.iteritems():
-        print "key: %s, type: %s" % (k, type(v))
-
     if 'items' not in data:
         raise Exception('Expecting a "items" section in data dict. ')
 

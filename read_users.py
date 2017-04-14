@@ -1,5 +1,5 @@
 
-from model.users import loadUsers
+from model.user import loadUsers
 
 dataFn = 'data/users.csv'
 

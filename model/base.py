@@ -9,7 +9,12 @@ import pyworkflow.utils as pwutils
 class UString(String):
     def _convertValue(self, value):
         try:
-            v = unicode(value, encoding='utf-8')
+            if isinstance(value, unicode):
+                v = value
+            elif isinstance(value, str):
+                v = unicode(value, encoding='utf-8', errors='ignore')
+            else:
+                v = str(value)
         except Exception, ex:
             print value, type(value)
             raise
@@ -30,7 +35,10 @@ class DataObject(OrderedObject):
         # Set automatically a number of string properties
 
         for key in self.ATTR_STR:
-            setattr(self, key, UString(kwargs.get(key, '')))
+            try:
+                setattr(self, key, UString(kwargs.get(key, '')))
+            except Exception, ex:
+                print "Error trying to set value for '%s' " % key
 
         for key in self.ATTR_RAW:
             setattr(self, key, kwargs.get(key, None))

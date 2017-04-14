@@ -1,5 +1,5 @@
 
-from model.reservations import loadReservations
+from model.reservation import loadReservations
 
 reservations = loadReservations()
 
