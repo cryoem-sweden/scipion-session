@@ -45,69 +45,11 @@ from pyworkflow.gui.project.base import ProjectBaseWindow
 from pyworkflow.gui.widgets import HotButton, Button
 from pyworkflow.gui import Window, Message, Color
 
-from model.users import loadUsers
+from model.user import loadUsers
+from model.reservation import loadReservations
+from model.order import loadOrders
+from config import *
 
-
-VIEW_WIZARD = 'wizardview'
-
-# Protocol's contants
-MOTIONCORR = "MOTIONCORR"
-MOTIONCOR2 = "MOTIONCOR2"
-OPTICAL_FLOW = "OPTICAL_FLOW"
-SUMMOVIE = "SUMMOVIE"
-CTFFIND4 = "CTFFIND4"
-GCTF = "GCTF"
-EMAIL_NOTIFICATION = "EMAIL_NOTIFICATION"
-HTML_REPORT = "HTML_REPORT"
-GRIDS = "GRIDS"
-CS = "CS"
-MAG = "MAG"
-
-# Some related environment variables
-DATA_FOLDER = 'DATA_FOLDER'
-USER_NAME = 'USER_NAME'
-SAMPLE_NAME = 'SAMPLE_NAME'
-PROJECT_NAME = 'PROJECT_NAME'
-PROJECT_TYPE = 'PROJECT_TYPE'
-
-SCIPION_PROJECT = 'SCIPION_PROJECT'
-FRAMES_RANGE = 'FRAMES_RANGE'
-MICROSCOPE = 'MICROSCOPE'
-DATA_BACKUP = 'DATA_BACKUP'
-PATTERN = 'PATTERN'
-PUBLISH = 'PUBLISH'
-SMTP_SERVER = 'SMTP_SERVER'
-SMTP_FROM = 'SMTP_FROM'
-SMTP_TO = 'SMTP_TO'
-
-PROTOCOLS = "Protocols"
-MONITORS = "Monitors"
-MICROSCOPE = "Microscope"
-MESSAGE = 'Message'
-
-# Define some string constants
-LABELS = {
-    DATA_FOLDER: "Data folder",
-    USER_NAME: "User name",
-    SAMPLE_NAME: "Sample name",
-    DATA_BACKUP: 'Data Backup Dir',
-    PROJECT_NAME: "Project ID",
-    PROJECT_TYPE: "Project Type",
-    SCIPION_PROJECT: "Scipion project",
-    FRAMES_RANGE: "Frames range",
-
-    # Protocol's contants
-    MOTIONCORR: "MotionCorr",
-    MOTIONCOR2: "Use MotionCor2",
-    OPTICAL_FLOW: "Optical Flow",
-    SUMMOVIE: "Summovie (dose compensation)",
-    CTFFIND4: "Ctffind4",
-    GCTF: "GCtf",
-    EMAIL_NOTIFICATION: "Email notification",
-    HTML_REPORT: "HTML Report"
-}
-
-USER_GROUPS = ['cem', 'dbb', 'fac', 'int']
 # Project ID should start by one of the previous groups
 # followed by 5 digits code
 PROJECT_REGEX = re.compile("(%s)(\d{5})$" % ('|'.join(USER_GROUPS)))
@@ -117,16 +59,20 @@ class Data():
     STAFF = ['marta.carroni@scilifelab.se',
              'julian.conrad@scilifelab.se']
 
-    PROJECT_TYPES = ['National Facility Project',
-                     'Internal Project']
-
     def __init__(self):
         self._users = loadUsers()
         self._usersDict = {}
         for u in self._users:
             self._usersDict[u.email.get()] = u
             u.isStaff = self._isUserStaff(u)
-            u.group = self._getUserGroup(u)
+
+        self._reservations = loadReservations()
+
+        self._orders = loadOrders()
+        self._accepted = []
+        for r in self._orders:
+            if r.status == 'accepted':
+                self._accepted.append(r)
 
         # Keep a configuration of user, project-type and project
         self.user = None
@@ -137,23 +83,11 @@ class Data():
     def _isUserStaff(self, user):
         return user.email.get() in self.STAFF
 
-    def _getUserGroup(self, user):
-        email = user.email.get()
-
-        if not self._isUserStaff(user):
-            if email.endswith('scilifelab.se'):
-                return 'sll'
-
-            if email.endswith('dbb.su.se'):
-                return 'dbb'
-
-        return 'fac'
-
     def getUserStringList(self):
         usList = []
 
         def _getStr(u):
-            return "%s  -  %s" % (u.name.get(), u.email.get())
+            return "%s  --  %s" % (u.name.get(), u.email.get())
 
         # Add stuff personnel first
         for email in self.STAFF:
@@ -166,38 +100,81 @@ class Data():
         return usList
 
     def getUserFromStr(self, userStr):
-        name, email = userStr.split('-')
+        name, email = userStr.split('--')
         return self._usersDict[email.strip()]
 
     def selectUser(self, user):
         self.user = user
-        self.projectType = None if user.isStaff else self.PROJECT_TYPES[1]
+        if user.isStaff:
+            self.projectType = None
+        else:
+            self.projectType = PROJECT_TYPES[1]
+            self._loadProjectId()
 
     def selectProjectType(self, projType):
         self.projectType = projType
         if not self.user.isStaff:
             raise Exception("Project type only can be selected for "
                             "STAFF users.")
-        self.group = 'cem' if self.isNational() else self.user.group
+        else:
+            self._loadProjectId()
 
     def isNational(self):
-        return self.projectType == self.PROJECT_TYPES[0]
+        return self.projectType == PROJECT_TYPES[0]
+
+    def getProjectType(self):
+        return self.projectType
+
+    def getProjectGroup(self):
+        return 'cem' if self.isNational() else self.user.group.get()
 
     def getDataFolder(self):
-        return '/data/staging/%s/' % self.group
+        return os.path.join(DEFAULTS[DATA_FOLDER], self.getProjectGroup())
+
+    def getProjectFolder(self):
+        return os.path.join(self.getDataFolder(), self.getProjectId())
+
+    def setProjectId(self, projId):
+        self.projectId = projId
 
     def getProjectId(self):
+        return self.projectId
+
+    def _findNextProjectId(self):
+        group = self.getProjectGroup()
+        folder = self.getDataFolder()
+        last = 0
+        print "dataFolder: ", folder
+        for d in os.listdir(folder):
+            print "d: ", d
+            if os.path.isdir(os.path.join(folder, d)) and d.startswith(group):
+                n = int(d.replace(group, ''))
+                last = max(last, n)
+
+        print '%s%05d' % (group, last+1)
+        return '%s%05d' % (group, last+1)
+
+    def _loadProjectId(self):
         if self.isNational():
-            return 'cem00004' # grab this from the portalen
+            self.projectId = 'cem00004' # grab this from the portalen
         else:
             # Grab this from the log of sessions
-            return '%s%05d' % (self.group, 3)
+            self.projectId = self._findNextProjectId()
+
+    def getNationalProjects(self):
+        return [o.name.get().lower() for o in self._accepted]
+
+    def getScipionProject(self):
+        return '%s_scipion' % self.getProjectId()
+
+    def getScipionProjectFolder(self):
+        return os.path.join(self.getProjectFolder(), self.getScipionProject())
 
 
 class BoxWizardWindow(ProjectBaseWindow):
     """ Windows to manage all projects. """
 
-    def __init__(self, config, **kwargs):
+    def __init__(self, **kwargs):
         try:
             title = '%s (%s on %s)' % (Message.LABEL_PROJECTS,
                                        pwutils.getLocalUserName(),
@@ -208,7 +185,6 @@ class BoxWizardWindow(ProjectBaseWindow):
         settings = ProjectSettings()
         self.generalCfg = settings.getConfig()
 
-        self.config = config
         self.data = Data()
         ProjectBaseWindow.__init__(self, title, minsize=(400, 550), **kwargs)
         self.viewFuncs = {VIEW_WIZARD: BoxWizardView}
@@ -328,6 +304,9 @@ class BoxWizardView(tk.Frame):
         return v
 
     def _getVarValue(self, key):
+        if not key in self.vars:
+            return None
+
         return self._getVar(key).get()
 
     def _setVarValue(self, key, value):
@@ -335,7 +314,6 @@ class BoxWizardView(tk.Frame):
 
     def _showWidgets(self, key, value):
         _, widget = self.vars[key]
-        print "_showWidget: key=%s, value=%s" % (key, value)
         if value:
             widget.grid(sticky='news')
         else:
@@ -362,29 +340,31 @@ class BoxWizardView(tk.Frame):
             self._lastRow += 1
             return v
 
-        def _getContainerFrame(**kwargs):
+        def _getContainerFrame(parent=None, **kwargs):
             """ Request for a new row and create two frames, one to hold the
             row position and another one that can be show/hidden.
             """
-            lf = self._lastFrame
-            r = _newRow()
-            parent = tk.Frame(lf)
-            parent.grid(row=r, sticky='news')
-            parent.columnconfigure(0, weight=1)
-            parent.rowconfigure(0, weight=1)
+            if parent is None:
+                lf = self._lastFrame
+                r = _newRow()
+                parent = tk.Frame(lf)
+                parent.grid(row=r, sticky='news')
+                parent.columnconfigure(0, weight=1)
+                parent.rowconfigure(0, weight=1)
 
+            frameCol = kwargs.get('frameCol', 0)
             frame = tk.Frame(parent)
-            frame.grid(row=0, sticky='news')
+            frame.grid(row=0, column=frameCol, sticky='news')
             frame.columnconfigure(0, minsize=180)
             frame.columnconfigure(1, weight=1)
 
             if not kwargs.get('visible', True):
                 frame.grid_forget()
 
-            return frame
+            return parent, frame
 
         def _addPair(key, widget='entry', **kwargs):
-            frame = _getContainerFrame(**kwargs)
+            _, frame = _getContainerFrame(**kwargs)
 
             t = LABELS.get(key, key)
             label = tk.Label(frame, text=t, font=self.bigFont)
@@ -413,29 +393,49 @@ class BoxWizardView(tk.Frame):
 
             self._storeVarWidgets(key, var, frame)
 
-        def _addCheckPair(key, col=1):
-            lf = self._lastFrame
-            r = _newRow() if col == 1 else self._lastRow
-            t = LABELS.get(key, key)
-            var = tk.IntVar()
+        def _addCheckPair(*keys, **kwargs):
+            _, frame = _getContainerFrame(**kwargs)
 
-            cb = tk.Checkbutton(lf, text=t, font=self.bigFont, variable=var)
-            self.checkvars.append(key)
-            cb.grid(row=r, column=col, padx=5, sticky='nw')
-            self._storeVarWidgets(key, var, cb)
+            label = kwargs.get('label', None)
+
+            if label is not None:
+                label = tk.Label(frame, text=label, font=self.bigFont)
+                label.grid(row=0, column=0, padx=(10, 5), pady=2, sticky='ne')
+
+            for i, key in enumerate(keys):
+                checkFrame = tk.Frame(frame)
+                c = i + 1
+                checkFrame.grid(row=0, column=c, sticky='news')
+                frame.columnconfigure(c, weight=1)
+                frame.columnconfigure(c, minsize=200)
+                t = LABELS.get(key, key)
+                var = tk.IntVar()
+
+                cb = tk.Checkbutton(checkFrame, text=t, font=self.bigFont,
+                                    variable=var)
+
+                # This is used later to get values for preprocessing
+                if kwargs.get('isCheckVar', True):
+                    self.checkvars.append(key)
+
+                traceCallback = kwargs.get('traceCallback', None)
+                if traceCallback:
+                    var.trace('w', traceCallback)
+
+                cb.grid(row=0, column=0, padx=5, sticky='nw')
+
+                self._storeVarWidgets(key, var, frame)
 
         def _addComboPair(key, **kwargs):
             t = LABELS.get(key, key)
-            frame = _getContainerFrame(**kwargs)
+            _, frame = _getContainerFrame(**kwargs)
             label = tk.Label(frame, text=t, font=self.bigFont)
             label.grid(row=0, column=0, padx=(10, 5), pady=2, sticky='ne')
 
             var = tk.StringVar()
             combo = ttk.Combobox(frame, textvariable=var, state='readonly',
                                  width=40)
-            values = kwargs.get('values', None)
-            combo['values'] = values or self._getConfig().keys()
-
+            combo['values'] = kwargs.get('values')
             traceCallback = kwargs.get('traceCallback', None)
 
             if traceCallback:
@@ -443,8 +443,6 @@ class BoxWizardView(tk.Frame):
 
             combo.grid(row=0, column=1, sticky='nw', padx=(5, 10), pady=(10, 2))
             self._storeVarWidgets(key, var, frame)
-
-
             return combo
 
         lfProject = _createTabFrame(' Project ')
@@ -456,61 +454,47 @@ class BoxWizardView(tk.Frame):
                                        values=self.data.getUserStringList(),
                                        traceCallback=self._onUserChanged)
         self.projectCombo = _addComboPair(PROJECT_TYPE,
-                                          values=Data.PROJECT_TYPES,
+                                          values=PROJECT_TYPES,
                                           traceCallback=self._onProjectTypeChanged,
                                           visible=False)
 
-        _addPair(PROJECT_NAME, widget='entry',
-                 traceCallback=self._onInputChange,
-                 visible=False)
-        _addPair(DATA_FOLDER, widget='label')
-        _addPair(SCIPION_PROJECT, widget='label')
-        _addPair(MESSAGE, widget='label')
+        self.projIdCombo = _addComboPair(PROJECT_ID, widget='entry', values=[],
+                                         traceCallback=self._onProjectChanged,
+                                         visible=False)
+        _addPair(PROJECT_FOLDER, widget='label', visible=False)
 
-        lfSettinglabelFrame = _createTabFrame(' Settings ')
-        self.micCombo = _addComboPair(MICROSCOPE,
+        _createTabFrame(' Settings ')
+        self.micCombo = _addComboPair(MICROSCOPE, values=MICROSCOPES,
                                       traceCallback=self._onMicroscopeChanged)
+        self.camCombo = _addComboPair(CAMERA, values=CAMERAS)
 
-        labelFrame2 = _createTabFrame(' Pre-processing ')
-        labelFrame2.columnconfigure(0, minsize=120)
+        _createTabFrame(' Pre-processing ')
+        _addCheckPair(SCIPION_PREPROCESSING, label='',
+                      traceCallback=self._showProcessingOptions)
+        _addPair(SCIPION_PROJECT, widget='label')
         _addPair(FRAMES_RANGE)
-        _addPair(PROTOCOLS, widget=False)
-        _addCheckPair(MOTIONCORR)
-        _addCheckPair(MOTIONCOR2, col=2)
-        _addCheckPair(OPTICAL_FLOW)
-        _addCheckPair(SUMMOVIE)
-        _addCheckPair(CTFFIND4)
-        _addCheckPair(GCTF, col=2)
-        _addPair("Monitors", widget=False)
-        _addCheckPair(EMAIL_NOTIFICATION)
-        _addCheckPair(HTML_REPORT, col=2)
+        _addCheckPair(MOTIONCORR, MOTIONCOR2, label=MOTION_CORRECTION)
+        _addCheckPair(CTFFIND4, GCTF, label=CTF_ESTIMATION)
+        _addCheckPair(EMAIL_NOTIFICATION, HTML_REPORT, label="Monitors")
 
         content.columnconfigure(0, weight=1)
-
-        self._onInputChange()
+        self._setProcessingOptions()
 
     def _getConfValue(self, key, default=''):
-        return self.windows.config[self.microscope].get(key, default)
-
-    def _getConfig(self):
-        return self.windows.config
-
+        return DEFAULTS.get(key, default)
 
     def _onAction(self, e=None):
         errors = []
-        doBackup = True
         # Check the Data folder exists
-        dataFolder = self._getDataFolder()
-        projName = self._getProjectName()
-        projPath = dataFolder
-        scipionProj = self._getScipionProject()
-        scipionProjPath = os.path.join(projPath, scipionProj)
-        # Do more checks only if there are not previous errors
-        if not self._validProjectName():
-            errors.append("Project ID should start with the group name"
-                          "followed by five digits."
-                          "Possible groups are: %s"
-                          "Examples: \n   int00012\n   dbb00028\n   fac00003")
+        projName = self.data.getProjectId()
+        projPath = self.data.getProjectFolder()
+        scipionProjPath = self.data.getScipionProjectFolder()
+
+        if os.path.exists(projPath):
+            errors.append("The project folder: '%s' already exists."
+                          "This should not happens, contact the facility "
+                          "staff. " % projPath)
+
         if not errors:
             if os.path.exists(scipionProjPath):
                 errors.append("Scipion Project path '%s' already exists."
@@ -664,58 +648,60 @@ class BoxWizardView(tk.Frame):
 
         return newValue
 
-    def _getProjectName(self):
-        return self._getVarValue(PROJECT_NAME)
-
-    def _validProjectName(self):
-        return PROJECT_REGEX.match(self._getProjectName())
-
     def _isInputReady(self):
         return self.microscope is not None and self._validProjectName()
-
-    def _getDataFolder(self):
-        if not self._isInputReady():
-            return ''
-        dataFolder = self._getConfValue(DATA_FOLDER)
-        projName = self._getProjectName()
-        groups = PROJECT_REGEX.match(projName).groups()
-
-        dataFolder = os.path.join(dataFolder, groups[0], projName)
-        return dataFolder
-
-    def _getScipionProject(self):
-        if not self._isInputReady():
-            return ''
-        scipionProj = self._getConfValue(SCIPION_PROJECT)
-        return scipionProj.replace('${PROJECT_NAME}', self._getProjectName())
 
     def _checkInput(self, varKey):
         value = self._getVarValue(varKey)
 
-    def fileDialog(self, * args):
-        """callback that display a directory dialog window"""
-        try:
-             initialdir = self._getConfValue(DATA_BACKUP, '')
-        except:
-            tkMessageBox.showerror("Error","Please select Microscope first")
-            return
-        backupFolder = tkFileDialog.askdirectory(parent=self.root,
-                                                 initialdir=initialdir,
-                                                 title='Choose Backup directory')
-        self._setVarValue(DATA_BACKUP, backupFolder)
-
     def _onInputChange(self, *args):
         pass
 
+    def _setProcessingOptions(self):
+        # Check/uncheck different options
+        for key in self.checkvars:
+            self._setVarValue(key, 1 if self._getConfValue(key) else 0)
+
+        self._showProcessingOptions()
+
+    def _showProcessingOptions(self, *args):
+        prep = self._getVarValue(SCIPION_PREPROCESSING)
+        for key in self.checkvars:
+            if key != SCIPION_PREPROCESSING:
+                self._showWidgets(key, prep)
+        self._showWidgets(FRAMES_RANGE, prep)
+
     def _updateData(self):
-        self._setVarValue(DATA_FOLDER, self.data.getDataFolder())
-        self._setVarValue(SCIPION_PROJECT, self._getScipionProject())
+        print "updating data..."
+        if self.data.getProjectType() is None:
+            return
+
+        if self.data.isNational():
+            options = self.data.getNationalProjects()
+        else:
+            options = []
+
+        print "setting combo...."
+        self.projIdCombo.config(values=options)
+        projId = self.data.getProjectId()
+        print "projId: ", projId
+
+        if projId is None:
+            return
+
+
+        self._setVarValue(PROJECT_ID, projId)
+        self._setVarValue(PROJECT_FOLDER, self.data.getProjectFolder())
+        self._showWidgets(PROJECT_ID, True)
+        self._showWidgets(PROJECT_FOLDER, True)
+        self._setVarValue(SCIPION_PROJECT, self.data.getScipionProjectFolder())
 
     def _onUserChanged(self, *args):
         username = self._getVarValue(USER_NAME)
         if not username:
             return
 
+        print "User changing..."
         user = self.data.getUserFromStr(username)
         self.data.selectUser(user)
         self._showWidgets(PROJECT_TYPE, user.isStaff)
@@ -727,60 +713,21 @@ class BoxWizardView(tk.Frame):
             return
 
         self.data.selectProjectType(projectType)
-        isNational = self.data.isNational()
-        self._showWidgets(PROJECT_NAME, not isNational)
         self._updateData()
 
+    def _onProjectChanged(self, *args):
+        projectId = self._getVarValue(PROJECT_ID)
+        if not projectId:
+            return
+
+        self.data.setProjectId(projectId)
+        self._updateData()
 
     def _onMicroscopeChanged(self, *args):
         self.microscope = self._getVarValue(MICROSCOPE)
         self.micCombo.selection_clear()
-        # Check/uncheck different options
-        for key in self.checkvars:
-            self._setVarValue(key, int(self._getConfValue(key, 0)))
-
-        self._onInputChange()
-
-
-def createDictFromConfig():
-    """ Read the configuration from scipion/config/scipionbox.conf.
-     A dictionary will be created where each key will be a section starting
-     by MICROSCOPE:, all variables that are in the GLOBAL section will be
-     inherited by default.
-    """
-    # Read from users' config file.
-    confGlobalDict = OrderedDict()
-    confDict = OrderedDict()
-
-    cp = ConfigParser()
-    cp.optionxform = str  # keep case (stackoverflow.com/questions/1611799)
-
-    confFile = pw.getConfigPath("scipionbox.conf")
-
-    print "Reading conf file: ", confFile
-    cp.read(confFile)
-
-    GLOBAL = "GLOBAL"
-    MICROSCOPE = "MICROSCOPE:"
-
-    if not GLOBAL in cp.sections():
-        raise Exception("Missing section %s in %s" % (GLOBAL, confFile))
-    else:
-        for opt in cp.options(GLOBAL):
-            confGlobalDict[opt] = cp.get(GLOBAL, opt)
-
-    for section in cp.sections():
-        if section != GLOBAL and section.startswith(MICROSCOPE):
-            sectionDict = OrderedDict(confGlobalDict)
-            for opt in cp.options(section):
-                sectionDict[opt] = cp.get(section, opt)
-            confDict[section.replace(MICROSCOPE, '')] = sectionDict
-
-    return confDict
 
 
 if __name__ == "__main__":
-    confDict = createDictFromConfig()
-
-    wizWindow = BoxWizardWindow(confDict)
+    wizWindow = BoxWizardWindow()
     wizWindow.show()
