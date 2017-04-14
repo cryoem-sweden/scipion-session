@@ -3,7 +3,7 @@ This module contains classes and utility functions to deal with users
 that can book the microscope and can start a session.
 """
 
-from base import DataObject, UString
+from base import DataObject, parseCsv
 
 
 class User(DataObject):
@@ -21,16 +21,12 @@ def loadUsers(usersCsvFile='data/users.csv'):
 
     users = []
 
-    for line in dataFile:
-        if headerString in line:
-            continue
-        # Values should be separated by comma
-        parts = line.split(',')
+    for row in parseCsv(usersCsvFile):
         # Remove weird code form the name part
-        name = parts[0].replace('{title} {resourcename}', '')
+        name = row[0].replace('{title} {resourcename}', '')
         users.append(User(name=name.strip(),
-                          username=parts[1].strip(),
-                          email=parts[2].strip()))
+                          username=row[1].strip(),
+                          email=row[2].strip()))
 
     dataFile.close()
 

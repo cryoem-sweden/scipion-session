@@ -12,7 +12,7 @@ class Order(DataObject):
     ATTR_RAW = ['history', 'owner']
 
 
-def loadOrders(jsonFile):
+def loadOrders(jsonFile='data/orders.json'):
     """ Load a list of order objects from a given json file.
     """
     dataFile = open(jsonFile)
@@ -52,8 +52,5 @@ def groupOrdersBy(orders, attributeName):
             groupDict[value] = []
 
         groupDict[value].append(o)
-
-    for k, v in groupDict.iteritems():
-        print "%s: %d" % (k, len(v))
 
     return groupDict
