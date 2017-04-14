@@ -110,8 +110,8 @@ FALCON2 = 'Falcon2'
 CAMERAS = [K2, FALCON2]
 
 MIC_CAMERAS = {
-    TITAN: ['K2', 'Falcon2'],
-    TALOS: ['Falcon2']
+    TITAN: [K2, FALCON2],
+    TALOS: [FALCON2]
     }
 
 # Configuration dependent on Micrograph

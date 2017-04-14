@@ -144,14 +144,11 @@ class Data():
         group = self.getProjectGroup()
         folder = self.getDataFolder()
         last = 0
-        print "dataFolder: ", folder
         for d in os.listdir(folder):
-            print "d: ", d
             if os.path.isdir(os.path.join(folder, d)) and d.startswith(group):
                 n = int(d.replace(group, ''))
                 last = max(last, n)
 
-        print '%s%05d' % (group, last+1)
         return '%s%05d' % (group, last+1)
 
     def _loadProjectId(self):
@@ -466,7 +463,7 @@ class BoxWizardView(tk.Frame):
         _createTabFrame(' Settings ')
         self.micCombo = _addComboPair(MICROSCOPE, values=MICROSCOPES,
                                       traceCallback=self._onMicroscopeChanged)
-        self.camCombo = _addComboPair(CAMERA, values=CAMERAS)
+        self.camCombo = _addComboPair(CAMERA, values=[])
 
         _createTabFrame(' Pre-processing ')
         _addCheckPair(SCIPION_PREPROCESSING, label='',
@@ -491,7 +488,7 @@ class BoxWizardView(tk.Frame):
         scipionProjPath = self.data.getScipionProjectFolder()
 
         if os.path.exists(projPath):
-            errors.append("The project folder: '%s' already exists."
+            errors.append("The project folder: '%s' already exists. \n"
                           "This should not happens, contact the facility "
                           "staff. " % projPath)
 
@@ -681,10 +678,8 @@ class BoxWizardView(tk.Frame):
         else:
             options = []
 
-        print "setting combo...."
         self.projIdCombo.config(values=options)
         projId = self.data.getProjectId()
-        print "projId: ", projId
 
         if projId is None:
             return
@@ -701,7 +696,6 @@ class BoxWizardView(tk.Frame):
         if not username:
             return
 
-        print "User changing..."
         user = self.data.getUserFromStr(username)
         self.data.selectUser(user)
         self._showWidgets(PROJECT_TYPE, user.isStaff)
@@ -725,7 +719,10 @@ class BoxWizardView(tk.Frame):
 
     def _onMicroscopeChanged(self, *args):
         self.microscope = self._getVarValue(MICROSCOPE)
-        self.micCombo.selection_clear()
+        self.camCombo.selection_clear()
+        options = MIC_CAMERAS[self.microscope]
+        self.camCombo.config(values=options)
+        self._setVarValue(CAMERA, options[0])
 
 
 if __name__ == "__main__":
