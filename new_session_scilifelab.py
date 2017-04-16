@@ -26,6 +26,7 @@
 import os
 import sys
 import re
+import datetime as dt
 import Tkinter as tk
 import tkFileDialog
 import tkMessageBox
@@ -45,9 +46,7 @@ from pyworkflow.gui.project.base import ProjectBaseWindow
 from pyworkflow.gui.widgets import HotButton, Button
 from pyworkflow.gui import Window, Message, Color
 
-from model.user import loadUsers
-from model.reservation import loadReservations
-from model.order import loadOrders
+from model.data import Data
 from config import *
 
 # Project ID should start by one of the previous groups
@@ -55,120 +54,6 @@ from config import *
 PROJECT_REGEX = re.compile("(%s)(\d{5})$" % ('|'.join(USER_GROUPS)))
 
 
-class Data():
-    STAFF = ['marta.carroni@scilifelab.se',
-             'julian.conrad@scilifelab.se']
-
-    def __init__(self):
-        self._users = loadUsers()
-        self._usersDict = {}
-        for u in self._users:
-            self._usersDict[u.email.get()] = u
-            u.isStaff = self._isUserStaff(u)
-
-        self._reservations = loadReservations()
-
-        self._orders = loadOrders()
-        self._accepted = []
-        for r in self._orders:
-            if r.status == 'accepted':
-                self._accepted.append(r)
-
-        # Keep a configuration of user, project-type and project
-        self.user = None
-        self.projectType = None
-        self.projectId = None
-        self.group = None
-
-    def _isUserStaff(self, user):
-        return user.email.get() in self.STAFF
-
-    def getUserStringList(self):
-        usList = []
-
-        def _getStr(u):
-            return "%s  --  %s" % (u.name.get(), u.email.get())
-
-        # Add stuff personnel first
-        for email in self.STAFF:
-            usList.append(_getStr(self._usersDict[email]))
-        # Add other users
-        for u in self._users:
-            if u.email.get() not in self.STAFF:
-                usList.append(_getStr(u))
-
-        return usList
-
-    def getUserFromStr(self, userStr):
-        name, email = userStr.split('--')
-        return self._usersDict[email.strip()]
-
-    def selectUser(self, user):
-        self.user = user
-        if user.isStaff:
-            self.projectType = None
-        else:
-            self.projectType = PROJECT_TYPES[1]
-            self._loadProjectId()
-
-    def selectProjectType(self, projType):
-        self.projectType = projType
-        if not self.user.isStaff:
-            raise Exception("Project type only can be selected for "
-                            "STAFF users.")
-        else:
-            self._loadProjectId()
-
-    def isNational(self):
-        return self.projectType == PROJECT_TYPES[0]
-
-    def getProjectType(self):
-        return self.projectType
-
-    def getProjectGroup(self):
-        return 'cem' if self.isNational() else self.user.group.get()
-
-    def getDataFolder(self):
-        return os.path.join(DEFAULTS[DATA_FOLDER], self.getProjectGroup())
-
-    def getProjectFolder(self):
-        return os.path.join(self.getDataFolder(), self.getProjectId())
-
-    def setProjectId(self, projId):
-        self.projectId = projId
-
-    def getProjectId(self):
-        return self.projectId
-
-    def _findNextProjectId(self):
-        group = self.getProjectGroup()
-        folder = self.getDataFolder()
-        last = 0
-        print "dataFolder: ", folder
-        for d in os.listdir(folder):
-            print "d: ", d
-            if os.path.isdir(os.path.join(folder, d)) and d.startswith(group):
-                n = int(d.replace(group, ''))
-                last = max(last, n)
-
-        print '%s%05d' % (group, last+1)
-        return '%s%05d' % (group, last+1)
-
-    def _loadProjectId(self):
-        if self.isNational():
-            self.projectId = 'cem00004' # grab this from the portalen
-        else:
-            # Grab this from the log of sessions
-            self.projectId = self._findNextProjectId()
-
-    def getNationalProjects(self):
-        return [o.name.get().lower() for o in self._accepted]
-
-    def getScipionProject(self):
-        return '%s_scipion' % self.getProjectId()
-
-    def getScipionProjectFolder(self):
-        return os.path.join(self.getProjectFolder(), self.getScipionProject())
 
 
 class BoxWizardWindow(ProjectBaseWindow):
@@ -185,7 +70,9 @@ class BoxWizardWindow(ProjectBaseWindow):
         settings = ProjectSettings()
         self.generalCfg = settings.getConfig()
 
-        self.data = Data()
+        self.data = Data(microscope=kwargs.get('microscope'))
+        self.microscope = kwargs.get('microscope')
+
         ProjectBaseWindow.__init__(self, title, minsize=(400, 550), **kwargs)
         self.viewFuncs = {VIEW_WIZARD: BoxWizardView}
         self.manager = Manager()
@@ -238,7 +125,7 @@ class BoxWizardView(tk.Frame):
         self.root = windows.root
         self.vars = {}
         self.checkvars = []
-        self.microscope = None
+        self.microscope = self.windows.microscope
         # Regular expression to validate username and sample name
         self.re = re.compile('\A[a-zA-Z][a-zA-Z0-9_-]+\Z')
 
@@ -453,6 +340,8 @@ class BoxWizardView(tk.Frame):
         self.userCombo = _addComboPair(USER_NAME,
                                        values=self.data.getUserStringList(),
                                        traceCallback=self._onUserChanged)
+
+
         self.projectCombo = _addComboPair(PROJECT_TYPE,
                                           values=PROJECT_TYPES,
                                           traceCallback=self._onProjectTypeChanged,
@@ -466,6 +355,7 @@ class BoxWizardView(tk.Frame):
         _createTabFrame(' Settings ')
         self.micCombo = _addComboPair(MICROSCOPE, values=MICROSCOPES,
                                       traceCallback=self._onMicroscopeChanged)
+        self._setVarValue(MICROSCOPE, self.microscope)
         self.camCombo = _addComboPair(CAMERA, values=CAMERAS)
 
         _createTabFrame(' Pre-processing ')
@@ -478,6 +368,12 @@ class BoxWizardView(tk.Frame):
         _addCheckPair(EMAIL_NOTIFICATION, HTML_REPORT, label="Monitors")
 
         content.columnconfigure(0, weight=1)
+
+        user = self.data.getSelectedUser()
+        if user is not None:
+            self._setVarValue(USER_NAME, self.data.getUserString(user))
+            self._onUserChanged()
+
         self._setProcessingOptions()
 
     def _getConfValue(self, key, default=''):
@@ -729,5 +625,7 @@ class BoxWizardView(tk.Frame):
 
 
 if __name__ == "__main__":
-    wizWindow = BoxWizardWindow()
+    microscope = sys.argv[1] if len(sys.argv) > 1 else MICROSCOPES[0]
+
+    wizWindow = BoxWizardWindow(microscope=microscope)
     wizWindow.show()

@@ -14,12 +14,8 @@ class User(DataObject):
 def loadUsers(usersCsvFile='data/users.csv'):
     """ Load a list of order objects from a given json file.
     """
-    dataFile = open(usersCsvFile)
-
-    # We assume that the header line contains the following string
-    headerString = 'Username,Email,Phone,Organization,Position,Created'
-
     users = []
+    dataFile = open(usersCsvFile)
 
     for row in parseCsv(usersCsvFile):
         # Remove weird code form the name part
@@ -33,5 +29,7 @@ def loadUsers(usersCsvFile='data/users.csv'):
     dataFile.close()
 
     return users
+
+
 
 
