@@ -10,7 +10,7 @@ from base import DataObject, parseCsv
 
 class Reservation(DataObject):
     # List of attributes that will be set as UString
-    ATTR_STR = ['name', 'resource', 'title', 'begin', 'end', 'reference']
+    ATTR_STR = ['username', 'resource', 'title', 'begin', 'end', 'reference']
 
     def _getDate(self, attrName):
         value = self.getAttributeValue(attrName)
@@ -25,9 +25,11 @@ class Reservation(DataObject):
         return self._getData('end')
 
     def isToday(self):
-        now = dt.datetime.now()
-        return self.beginDate() == dt.datetime(year=now.year, month=now.month,
-                                               day=now.day)
+        return self.sameDay(dt.datetime.now())
+
+    def sameDay(self, date):
+        return self.beginDate() == dt.datetime(year=date.year, month=date.month,
+                                               day=date.day)
 
 
 def loadReservations(reservationsCsvFile='data/reservations.csv'):
@@ -42,8 +44,8 @@ def loadReservations(reservationsCsvFile='data/reservations.csv'):
 
     for row in parseCsv(reservationsCsvFile):
         # Remove weird code form the name part
-        name = row[0].replace('{title} {resourcename}', '')
-        reservations.append(Reservation(name=name.strip(),
+        username = row[0].replace('{title} {resourcename}', '')
+        reservations.append(Reservation(username=username.strip(),
                                         resource=row[1],
                                         title=row[2],
                                         begin=row[4],
