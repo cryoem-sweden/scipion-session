@@ -8,23 +8,7 @@ from reservation import loadReservations
 from user import loadUsers
 
 
-
-def findUserFromReservation(users, reservation):
-    """ Find the user of the given reservation.
-    """
-    username = reservation.username.get()
-
-    for u in users:
-        if username in u.name.get():
-            return u
-
-    return None
-
-
 class Data():
-    STAFF = ['marta.carroni@scilifelab.se',
-             'julian.conrad@scilifelab.se']
-
     def __init__(self, **kwargs):
         self.microscope = kwargs['microscope']
 
@@ -38,9 +22,9 @@ class Data():
 
         self._orders = loadOrders()
         self._accepted = []
-        for r in self._orders:
-            if r.status == 'accepted':
-                self._accepted.append(r)
+        for o in self._orders:
+            if o.status == 'accepted':
+                self._accepted.append(o)
 
         # Keep a configuration of user, project-type and project
         self.user = None
@@ -49,14 +33,24 @@ class Data():
         self.group = None
 
         now = dt.datetime.now()
-        r = self.findReservationFromDate(now, self.microscope)
+        todayReservations = self.findReservationFromDate(now, self.microscope)
 
-        if r is not None:
+        if todayReservations:
+            r = todayReservations[0]
             self._selectedReservation = r
-            self.user = r.user
+            self.selectUser(r.user)
+            # For staff users we will try to determine if the project
+            # is internal or national facility
+            if self.user.isStaff:
+                cemCode = r.getCemCode()
+                # Set the project type to either internal or national facility
+                projType = PROJECT_TYPES[0 if cemCode is None else 1]
+                self.selectProjectType(projType)
+        else:
+            print "No reservation found today for '%s'" % self.microscope
 
     def _isUserStaff(self, user):
-        return user.email.get() in self.STAFF
+        return user.email.get() in STAFF
 
     def getUserString(self, user):
         return "%s  --  %s" % (user.name.get(), user.email.get())
@@ -65,11 +59,11 @@ class Data():
         usList = []
 
         # Add stuff personnel first
-        for email in self.STAFF:
+        for email in STAFF:
             usList.append(self.getUserString(self._usersDict[email]))
         # Add other users
         for u in self._users:
-            if u.email.get() not in self.STAFF:
+            if u.email.get() not in STAFF:
                 usList.append(self.getUserString(u))
 
         return usList
@@ -107,7 +101,9 @@ class Data():
         return 'cem' if self.isNational() else self.user.group.get()
 
     def getDataFolder(self):
-        return os.path.join(DEFAULTS[DATA_FOLDER], self.getProjectGroup())
+        # Work around the 'int' folder prefix
+        groupDataFolder = GROUP_DATA[self.getProjectGroup()]
+        return os.path.join(DEFAULTS[DATA_FOLDER], groupDataFolder)
 
     def getProjectFolder(self):
         return os.path.join(self.getDataFolder(), self.getProjectId())
@@ -122,19 +118,16 @@ class Data():
         group = self.getProjectGroup()
         folder = self.getDataFolder()
         last = 0
-        print "dataFolder: ", folder
         for d in os.listdir(folder):
-            print "d: ", d
             if os.path.isdir(os.path.join(folder, d)) and d.startswith(group):
                 n = int(d.replace(group, ''))
                 last = max(last, n)
 
-        print '%s%05d' % (group, last+1)
         return '%s%05d' % (group, last+1)
 
     def _loadProjectId(self):
         if self.isNational():
-            self.projectId = 'cem00004' # grab this from the portalen
+            self.projectId = self.cemCode
         else:
             # Grab this from the log of sessions
             self.projectId = self._findNextProjectId()
@@ -161,11 +154,14 @@ class Data():
 
     def findReservationFromDate(self, date, resource=None):
         """ Find the reservation of a given date and resource. """
+        reservations = []
+
         for r in self._reservations:
             if (r.sameDay(date) and
                 (resource is None or r.resource == resource)):
                 user = self.findUserFromReservation(r)
                 r.user = user
-                return r
+                reservations.append(r)
 
-        return None
+        return reservations
+

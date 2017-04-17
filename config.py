@@ -15,6 +15,7 @@ HTML_REPORT = "HTML_REPORT"
 GRIDS = "GRIDS"
 CS = "CS"
 MAG = "MAG"
+VOLTAGE = "VOLTAGE"
 
 # Some related environment variables
 DATA_FOLDER = 'DATA_FOLDER'
@@ -96,14 +97,25 @@ DEFAULTS = {
 }
 
 USER_GROUPS = ['cem', 'dbb', 'fac', 'int']
+GROUP_DATA = {
+    'cem': 'cem',
+    'dbb': 'dbb',
+    'fac': 'fac',
+    'sll': 'int'
+}
+
+STAFF = ['marta.carroni@scilifelab.se',
+         'julian.conrad@scilifelab.se']
 
 PROJECT_TYPES = ['National Facility Project',
                  'Internal Project']
 
 # Microscope and camera settings
 TITAN = 'Titan Krios'
-TALOS = 'Talos Artica'
+TALOS = 'Talos Arctica'
+
 MICROSCOPES = [TITAN, TALOS]
+MICROSCOPES_ALIAS = {'titan': TITAN, 'talos': TALOS}
 
 K2 = 'K2'
 FALCON2 = 'Falcon2'
@@ -114,9 +126,10 @@ MIC_CAMERAS = {
     TALOS: [FALCON2]
     }
 
-# Configuration dependent on Micrograph
-MIC_CONFIG = {
-    ()
+# Configuration dependent on Microscopes
+MICROSCOPES_SETTINGS = {
+    TITAN: {CS: 2.7, VOLTAGE: 300},
+    TALOS: {CS: 2.7, VOLTAGE: 200}
 }
 
 """

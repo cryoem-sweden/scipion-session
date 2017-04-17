@@ -3,14 +3,25 @@ This module contains classes and utility functions to deal with users
 that can book the microscope and can start a session.
 """
 
-import csv
+import re
 import datetime as dt
 from base import DataObject, parseCsv
+
+CEM_REGEX = re.compile("(cem\d{5})")
 
 
 class Reservation(DataObject):
     # List of attributes that will be set as UString
     ATTR_STR = ['username', 'resource', 'title', 'begin', 'end', 'reference']
+
+    def __init__(self, **kwargs):
+        DataObject.__init__(self, **kwargs)
+        # Lets check if this reservation is for a national project
+        # by parsing the title and checking for a cemXXXXX code
+        # both cem and CEM will be recognized
+        t = self.title.get().lower()
+        m = CEM_REGEX.search(t)
+        self.cemCode = None if m is None else m.groups()[0]
 
     def _getDate(self, attrName):
         value = self.getAttributeValue(attrName)
@@ -30,6 +41,12 @@ class Reservation(DataObject):
     def sameDay(self, date):
         return self.beginDate() == dt.datetime(year=date.year, month=date.month,
                                                day=date.day)
+
+    def getCemCode(self):
+        return self.cemCode
+
+    def isNationalFacility(self):
+        return self.getCemCode() is None
 
 
 def loadReservations(reservationsCsvFile='data/reservations.csv'):

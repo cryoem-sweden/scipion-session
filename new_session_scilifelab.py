@@ -77,7 +77,6 @@ class BoxWizardWindow(ProjectBaseWindow):
         self.switchView(VIEW_WIZARD)
 
     def createHeaderFrame(self, parent):
-
         """ Create the Header frame at the top of the windows.
         It has (from left to right):
             - Main application Logo
@@ -339,7 +338,6 @@ class BoxWizardView(tk.Frame):
                                        values=self.data.getUserStringList(),
                                        traceCallback=self._onUserChanged)
 
-
         self.projectCombo = _addComboPair(PROJECT_TYPE,
                                           values=PROJECT_TYPES,
                                           traceCallback=self._onProjectTypeChanged,
@@ -353,8 +351,8 @@ class BoxWizardView(tk.Frame):
         _createTabFrame(' Settings ')
         self.micCombo = _addComboPair(MICROSCOPE, values=MICROSCOPES,
                                       traceCallback=self._onMicroscopeChanged)
-        self._setVarValue(MICROSCOPE, self.microscope)
-        self.camCombo = _addComboPair(CAMERA, values=CAMERAS)
+        self.camCombo = _addComboPair(CAMERA, values=[])
+
 
         _createTabFrame(' Pre-processing ')
         _addCheckPair(SCIPION_PREPROCESSING, label='',
@@ -367,10 +365,18 @@ class BoxWizardView(tk.Frame):
 
         content.columnconfigure(0, weight=1)
 
+        # Select the initial user if one by default
         user = self.data.getSelectedUser()
         if user is not None:
             self._setVarValue(USER_NAME, self.data.getUserString(user))
-            self._onUserChanged()
+            projType = self.data.getProjectType()
+            if projType is not None:
+                self._setVarValue(PROJECT_TYPE, projType)
+            self._updateUserInfo(self.data.getSelectedUser())
+
+        # Select initial value for the microscope
+        self._setVarValue(MICROSCOPE, self.microscope)
+        self._onMicroscopeChanged()
 
         self._setProcessingOptions()
 
@@ -416,6 +422,10 @@ class BoxWizardView(tk.Frame):
             sys.stdout.write("DONE\n")
 
         _createPath(projPath)
+        readmeFile = open(os.path.join(projPath, 'README.txt', 'w'))
+        readmeFile.write("""
+        """)
+
         _createPath(scipionProjPath)
 
     def _createScipionProject(self, projName, projPath, scipionProjPath):
@@ -430,18 +440,39 @@ class BoxWizardView(tk.Frame):
         doMail = self._getVarValue(EMAIL_NOTIFICATION)
         doPublish = self._getVarValue(HTML_REPORT)
 
+        microscope = self._getVarValue(MICROSCOPE)
+        camera = self._getVarValue(CAMERA)
+
+        def getMicSetting(key):
+            return MICROSCOPES_SETTINGS[microscope][key]
+
+        cs = getMicSetting(CS)
+        voltage = getMicSetting(VOLTAGE)
+
+        kwargs = {}
+
+        isK2 = camera == K2
+
         protImport = project.newProtocol(em.ProtImportMovies,
                                          objLabel='Import movies',
                                          filesPath=projPath,
                                          filesPattern=pattern,
-                                         sphericalAberration=self._getConfValue(CS),
-                                         dataStreaming=True)
+                                         voltage=voltage,
+                                         sphericalAberration=cs,
+                                         samplingRate=None,
+                                         magnification=None,
+                                         dataStreaming=True,
+                                         timeout=72000,
+                                         inputIndividualFrames=isK2,
+                                         stackFrames=isK2,
+                                         writeMoviesInProject=True
+                                         )
 
         # Should I publish html report?       
         if doPublish == 1:
             publish = self._getConfValue('HTML_PUBLISH')
-            print("\n\nReport available at URL: %s/%s\n\n"
-                  %('http://scipion.cnb.csic.es/scipionbox',projName))
+            #print("\n\nReport available at URL: %s/%s\n\n"
+            #      %('http://scipion.cnb.csic.es/scipionbox',projName))
         else:
             publish = ''
 
@@ -483,6 +514,7 @@ class BoxWizardView(tk.Frame):
             protMC = project.newProtocol(ProtMotionCorr,
                                          objLabel='Motioncorr',
                                          useMotioncor2=useMC2,
+                                         doComputeMicThumbnail=True,
                                          **kwargs)
             _saveProtocol(protMC)
 
@@ -511,12 +543,14 @@ class BoxWizardView(tk.Frame):
             _saveProtocol(protSM)
 
         lastBeforeCTF = self.lastProt
+        lowRes, highRes = 0.03, 0.42
 
         if useCTF:
             from pyworkflow.em.packages.grigoriefflab import ProtCTFFind
             protCTF = project.newProtocol(ProtCTFFind,
                                           objLabel='Ctffind',
-                                          numberOfThreads=1)
+                                          numberOfThreads=1,
+                                          lowRes=lowRes, highRes=highRes)
             protCTF.inputMicrographs.set(lastBeforeCTF)
             protCTF.inputMicrographs.setExtended('outputMicrographs')
             _saveProtocol(protCTF, movies=False)
@@ -524,7 +558,8 @@ class BoxWizardView(tk.Frame):
         if useGCTF:
             from pyworkflow.em.packages.gctf import ProtGctf
             protGCTF = project.newProtocol(ProtGctf,
-                                           objLabel='Gctf')
+                                           objLabel='Gctf',
+                                          lowRes=lowRes, highRes=highRes)
             protGCTF.inputMicrographs.set(lastBeforeCTF)
             protGCTF.inputMicrographs.setExtended('outputMicrographs')
             _saveProtocol(protGCTF, movies=False)
@@ -566,7 +601,6 @@ class BoxWizardView(tk.Frame):
         self._showWidgets(FRAMES_RANGE, prep)
 
     def _updateData(self):
-        print "updating data..."
         if self.data.getProjectType() is None:
             return
 
@@ -581,7 +615,6 @@ class BoxWizardView(tk.Frame):
         if projId is None:
             return
 
-
         self._setVarValue(PROJECT_ID, projId)
         self._setVarValue(PROJECT_FOLDER, self.data.getProjectFolder())
         self._showWidgets(PROJECT_ID, True)
@@ -595,6 +628,9 @@ class BoxWizardView(tk.Frame):
 
         user = self.data.getUserFromStr(username)
         self.data.selectUser(user)
+        self._updateUserInfo(user)
+
+    def _updateUserInfo(self, user):
         self._showWidgets(PROJECT_TYPE, user.isStaff)
         self._updateData()
 
@@ -623,7 +659,11 @@ class BoxWizardView(tk.Frame):
 
 
 if __name__ == "__main__":
-    microscope = sys.argv[1] if len(sys.argv) > 1 else MICROSCOPES[0]
+
+    if len(sys.argv) > 1:
+        microscope = MICROSCOPES_ALIAS[sys.argv[1].lower()]
+    else:
+        microscope = MICROSCOPES[0]
 
     wizWindow = BoxWizardWindow(microscope=microscope)
     wizWindow.show()
