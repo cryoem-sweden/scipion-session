@@ -35,12 +35,12 @@ class Reservation(DataObject):
     def endDate(self):
         return self._getData('end')
 
-    def isToday(self):
-        return self.sameDay(dt.datetime.now())
+    def isActiveToday(self):
+        return self.isActiveOnDay(dt.datetime.now())
 
-    def sameDay(self, date):
-        return self.beginDate() == dt.datetime(year=date.year, month=date.month,
-                                               day=date.day)
+    def isActiveOnDay(self, date):
+        day = dt.datetime(year=date.year, month=date.month, day=date.day)
+        return self.beginDate() >= day and self.endDate() <= day
 
     def getCemCode(self):
         return self.cemCode

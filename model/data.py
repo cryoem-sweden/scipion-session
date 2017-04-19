@@ -157,7 +157,7 @@ class Data():
         reservations = []
 
         for r in self._reservations:
-            if (r.sameDay(date) and
+            if (r.isActiveOnDay(date) and
                 (resource is None or r.resource == resource)):
                 user = self.findUserFromReservation(r)
                 r.user = user
