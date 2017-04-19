@@ -33,7 +33,7 @@ class Reservation(DataObject):
         return self._getDate('begin')
 
     def endDate(self):
-        return self._getData('end')
+        return self._getDate('end')
 
     def isActiveToday(self):
         return self.isActiveOnDay(dt.datetime.now())
