@@ -34,5 +34,6 @@ if __name__ == "__main__":
     if reservations:
         for r in reservations:
             r.printAll()
+            print "cemCode: ", r.getCemCode()
     else:
         print "No reservation found. "

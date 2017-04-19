@@ -42,9 +42,9 @@ class Data():
             # For staff users we will try to determine if the project
             # is internal or national facility
             if self.user.isStaff:
-                cemCode = r.getCemCode()
+                self.cemCode = r.getCemCode()
                 # Set the project type to either internal or national facility
-                projType = PROJECT_TYPES[0 if cemCode is None else 1]
+                projType = PROJECT_TYPES[1 if self.cemCode is None else 0]
                 self.selectProjectType(projType)
         else:
             print "No reservation found today for '%s'" % self.microscope
