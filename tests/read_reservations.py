@@ -1,6 +1,7 @@
 
 import sys
 import datetime as dt
+import argparse
 
 from model.data import Data
 
@@ -12,11 +13,23 @@ def parseDate(dateStr):
 
 
 if __name__ == "__main__":
-    date = parseDate(sys.argv[1]) if len(sys.argv) > 1 else dt.datetime.now()
-    resource = sys.argv[2] if len(sys.argv) > 2 else None
+    parser = argparse.ArgumentParser(
+        description="Query reservations. ")
+    add = parser.add_argument  # shortcut
+    add('--microscope', help="Select microscope")
+    add('--day', help="Date to check for reservations (Today by default)")
+    add('--month', help="Check all reservations of this month")
+    args = parser.parse_args()
 
-    d = Data(microscope=resource)
-    reservations = d.findReservationFromDate(date, resource)
+    d = Data(microscope=args.microscope)
+
+    if args.month:
+        reservations = d.findReservations(
+            lambda r: r.beginDate().month == date.month)
+    else: # day
+        date = parseDate(args.day) if args.day else dt.datetime.now()
+        reservations = d.findReservationFromDate(date, resource=args.microscope)
+
 
     if reservations:
         for r in reservations:

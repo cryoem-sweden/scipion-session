@@ -49,6 +49,9 @@ class Data():
         else:
             print "No reservation found today for '%s'" % self.microscope
 
+    def getReservations(self):
+        return self._reservations
+
     def _isUserStaff(self, user):
         return user.email.get() in STAFF
 
@@ -154,14 +157,21 @@ class Data():
 
     def findReservationFromDate(self, date, resource=None):
         """ Find the reservation of a given date and resource. """
+        def _active(r):
+            return r.isActiveOnDay(date) and (resource is None or
+                                              r.resource == resource)
+        return self.findReservations(_active)
+
+    def findReservations(self, conditionFunc):
+        """ Find reservations that satisfies the conditionFunc.
+        The correspoinding users will be set.
+        """
         reservations = []
 
         for r in self._reservations:
-            if (r.isActiveOnDay(date) and
-                (resource is None or r.resource == resource)):
+            if conditionFunc(r):
                 user = self.findUserFromReservation(r)
                 r.user = user
                 reservations.append(r)
 
         return reservations
-

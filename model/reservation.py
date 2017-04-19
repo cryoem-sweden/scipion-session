@@ -22,6 +22,8 @@ class Reservation(DataObject):
         t = self.title.get().lower()
         m = CEM_REGEX.search(t)
         self.cemCode = None if m is None else m.groups()[0]
+        self._beginDate = self._getDate('begin')
+        self._endDate = self._getDate('end')
 
     def _getDate(self, attrName):
         value = self.getAttributeValue(attrName)
@@ -30,10 +32,10 @@ class Reservation(DataObject):
         return dt.datetime(year=now.year, month=int(month), day=int(day))
 
     def beginDate(self):
-        return self._getDate('begin')
+        return self._beginDate
 
     def endDate(self):
-        return self._getDate('end')
+        return self._endDate
 
     def isActiveToday(self):
         return self.isActiveOnDay(dt.datetime.now())
@@ -41,6 +43,9 @@ class Reservation(DataObject):
     def isActiveOnDay(self, date):
         day = dt.datetime(year=date.year, month=date.month, day=date.day)
         return self.beginDate() >= day and self.endDate() <= day
+
+    def isActiveOnMonth(self, month):
+        return self.beginDate().month == month or self.endDate().month == month
 
     def getCemCode(self):
         return self.cemCode
