@@ -424,11 +424,13 @@ class BoxWizardView(tk.Frame):
         _createPath(projPath)
         readmeFile = open(os.path.join(projPath, 'README.txt'), 'w')
         u = self.data.getSelectedUser()
+        r = self.data.getSelectedReservation()
+
         readmeFile.write("name: %s\n" % u.name)
         readmeFile.write("email: %s\n" % u.email)
-        readmeFile.write("description: %s\n")
+        readmeFile.write("description: %s\n" % r.title)
         now = dt.datetime.now()
-        readmeFile.write("data: %d-%02d-%02d\n" % (now.year, now.month, now.day))
+        readmeFile.write("date: %d-%02d-%02d\n" % (now.year, now.month, now.day))
 
         readmeFile.close()
 
@@ -608,6 +610,9 @@ class BoxWizardView(tk.Frame):
 
     def _updateData(self):
         if self.data.getProjectType() is None:
+            self._setVarValue(PROJECT_TYPE, '')
+            self._showWidgets(PROJECT_ID, False)
+            self._showWidgets(PROJECT_FOLDER, False)
             return
 
         if self.data.isNational():
@@ -619,6 +624,8 @@ class BoxWizardView(tk.Frame):
         projId = self.data.getProjectId()
 
         if projId is None:
+            self._showWidgets(PROJECT_FOLDER, False)
+            self._setVarValue(PROJECT_ID, '')
             return
 
         self._setVarValue(PROJECT_ID, projId)
@@ -642,6 +649,7 @@ class BoxWizardView(tk.Frame):
 
     def _onProjectTypeChanged(self, *args):
         projectType = self._getVarValue(PROJECT_TYPE)
+
         if not projectType:
             return
 

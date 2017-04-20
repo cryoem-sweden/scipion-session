@@ -31,6 +31,7 @@ class Data():
         self.projectType = None
         self.projectId = None
         self.group = None
+        self.cemCode = None
 
         now = dt.datetime.now()
         todayReservations = self.findReservationFromDate(now, self.microscope)
@@ -85,6 +86,9 @@ class Data():
 
     def getSelectedUser(self):
         return self.user
+
+    def getSelectedReservation(self):
+        return self._selectedReservation
 
     def selectProjectType(self, projType):
         self.projectType = projType
