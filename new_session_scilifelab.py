@@ -458,7 +458,7 @@ class BoxWizardView(tk.Frame):
         voltage = getMicSetting(VOLTAGE)
 
         isK2 = camera == K2
-        pattern = CAMERA_SETTINGS[PATTERN]
+        pattern = CAMERA_SETTINGS[camera][PATTERN]
 
         protImport = project.newProtocol(em.ProtImportMovies,
                                          objLabel='Import movies',
