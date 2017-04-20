@@ -90,7 +90,7 @@ DEFAULTS = {
     HTML_REPORT: True,
     HTML_PUBLISH: '',
 
-    PATTERN: "Images-Disc*/GridSquare_*/Data/FoilHole_*frames.mrc",
+
     CS: 2.0,
     MAG: 130000
 
@@ -130,6 +130,15 @@ MIC_CAMERAS = {
 MICROSCOPES_SETTINGS = {
     TITAN: {CS: 2.7, VOLTAGE: 300},
     TALOS: {CS: 2.7, VOLTAGE: 200}
+}
+
+CAMERA_SETTINGS = {
+    K2: {
+        PATTERN: "k2_frames/Images-Disc*/GridSquare_*/Data/FoilHole_*.mrc"
+    },
+    FALCON2: {
+        PATTERN: "Images-Disc*/GridSquare_*/Data/FoilHole_*frames.mrc",
+    }
 }
 
 """

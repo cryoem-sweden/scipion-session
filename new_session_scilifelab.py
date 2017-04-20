@@ -440,7 +440,7 @@ class BoxWizardView(tk.Frame):
         manager = Manager()
         project = manager.createProject(projName, location=scipionProjPath)
         self.lastProt = None
-        pattern = self._getConfValue(PATTERN)
+
 
         smtpServer = self._getConfValue(SMTP_SERVER, '')
         smtpFrom = self._getConfValue(SMTP_FROM, '')
@@ -457,9 +457,8 @@ class BoxWizardView(tk.Frame):
         cs = getMicSetting(CS)
         voltage = getMicSetting(VOLTAGE)
 
-        kwargs = {}
-
         isK2 = camera == K2
+        pattern = CAMERA_SETTINGS[PATTERN]
 
         protImport = project.newProtocol(em.ProtImportMovies,
                                          objLabel='Import movies',
@@ -567,7 +566,10 @@ class BoxWizardView(tk.Frame):
             from pyworkflow.em.packages.gctf import ProtGctf
             protGCTF = project.newProtocol(ProtGctf,
                                            objLabel='Gctf',
-                                          lowRes=lowRes, highRes=highRes)
+                                           lowRes=lowRes, highRes=highRes,
+                                           doEPA=True,
+                                           doHighRes=True,
+                                           )
             protGCTF.inputMicrographs.set(lastBeforeCTF)
             protGCTF.inputMicrographs.setExtended('outputMicrographs')
             _saveProtocol(protGCTF, movies=False)
