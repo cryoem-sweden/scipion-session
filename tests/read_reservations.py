@@ -22,18 +22,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     d = Data(microscope=args.microscope)
+    now = dt.datetime.now()
 
     if args.month:
+        date = dt.datetime(month=int(args.month), year=now.year, day=now.day)
         reservations = d.findReservations(
             lambda r: r.beginDate().month == date.month)
     else: # day
-        date = parseDate(args.day) if args.day else dt.datetime.now()
+        date = parseDate(args.day) if args.day else now
         reservations = d.findReservationFromDate(date, resource=args.microscope)
 
 
     if reservations:
         for r in reservations:
             r.printAll()
-            print "cemCode: ", r.getCemCode()
     else:
         print "No reservation found. "

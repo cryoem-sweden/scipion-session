@@ -422,9 +422,15 @@ class BoxWizardView(tk.Frame):
             sys.stdout.write("DONE\n")
 
         _createPath(projPath)
-        readmeFile = open(os.path.join(projPath, 'README.txt', 'w'))
-        readmeFile.write("""
-        """)
+        readmeFile = open(os.path.join(projPath, 'README.txt'), 'w')
+        u = self.data.getSelectedUser()
+        readmeFile.write("name: %s\n" % u.name)
+        readmeFile.write("email: %s\n" % u.email)
+        readmeFile.write("description: %s\n")
+        now = dt.datetime.now()
+        readmeFile.write("data: %d-%02d-%02d\n" % (now.year, now.month, now.day))
+
+        readmeFile.close()
 
         _createPath(scipionProjPath)
 

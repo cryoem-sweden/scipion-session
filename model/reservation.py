@@ -42,7 +42,7 @@ class Reservation(DataObject):
 
     def isActiveOnDay(self, date):
         day = dt.datetime(year=date.year, month=date.month, day=date.day)
-        return self.beginDate() >= day and self.endDate() <= day
+        return self.beginDate() <= day and self.endDate() >= day
 
     def isActiveOnMonth(self, month):
         return self.beginDate().month == month or self.endDate().month == month

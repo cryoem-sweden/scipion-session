@@ -13,12 +13,11 @@ statusDict = groupOrdersBy(orders, 'ownerEmail')
 
 for o in sorted(orders, key=lambda o: o.name.get()):
     #if o.status == 'accepted':
-    if o.isActiveToday():
-        o.printAll()
-        print "history: "
-        pwutils.prettyDict(o.history)
-        print "owner: "
-        pwutils.prettyDict(o.owner)
+    o.printAll()
+    print "history: "
+    pwutils.prettyDict(o.history)
+    print "owner: "
+    pwutils.prettyDict(o.owner)
 
 #for k, v in statusDict.iteritems():
 #    print "%s: %d" % (k, len(v))

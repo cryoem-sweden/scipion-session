@@ -21,6 +21,10 @@ class UString(String):
 
         return v
 
+    def __str__(self):
+        """String representation of the scalar value"""
+        return self._objValue
+
 
 class DataObject(OrderedObject):
     """ Class to simply store string attributes passed
