@@ -522,6 +522,7 @@ class BoxWizardView(tk.Frame):
                                          objLabel='Motioncorr',
                                          useMotioncor2=useMC2,
                                          doComputeMicThumbnail=True,
+                                         computeAllFramesAvg=True,
                                          **kwargs)
             _saveProtocol(protMC)
 
