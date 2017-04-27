@@ -33,8 +33,9 @@ class Data():
         self.group = None
         self.cemCode = None
 
-        now = dt.datetime.now()
-        todayReservations = self.findReservationFromDate(now, self.microscope)
+        self.now = dt.datetime.now()
+        todayReservations = self.findReservationFromDate(self.now,
+                                                         self.microscope)
 
         if todayReservations:
             r = todayReservations[0]
@@ -143,7 +144,10 @@ class Data():
         return [o.name.get().lower() for o in self._accepted]
 
     def getScipionProject(self):
-        return '%s_scipion' % self.getProjectId()
+        now = self.now
+        return '%s_scipion_%04d%02d%02d' % (self.getProjectId(),
+                                            now.year, now.month, now.day)
+
 
     def getScipionProjectFolder(self):
         return os.path.join(self.getProjectFolder(), self.getScipionProject())
