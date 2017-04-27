@@ -10,17 +10,23 @@ from user import loadUsers
 
 class Data():
     def __init__(self, **kwargs):
+        self.dataFolder = kwargs['dataFolder']
         self.microscope = kwargs['microscope']
 
-        self._users = loadUsers()
+        usersFn = self.getDataFile('users.csv')
+        self._users = loadUsers(usersFn)
         self._usersDict = {}
+
         for u in self._users:
             self._usersDict[u.email.get()] = u
             u.isStaff = self._isUserStaff(u)
 
-        self._reservations = loadReservations()
+        reservationsFn = self.getDataFile('reservations.csv')
+        self._reservations = loadReservations(reservationsFn)
 
-        self._orders = loadOrders()
+        ordersFn = self.getDataFile('orders.json')
+        self._orders = loadOrders(ordersFn)
+
         self._accepted = []
         for o in self._orders:
             if o.status == 'accepted':
@@ -50,6 +56,9 @@ class Data():
                 self.selectProjectType(projType)
         else:
             print "No reservation found today for '%s'" % self.microscope
+
+    def getDataFile(self, filename):
+        return os.path.join(self.dataFolder, filename)
 
     def getReservations(self):
         return self._reservations

@@ -68,8 +68,8 @@ class BoxWizardWindow(ProjectBaseWindow):
         settings = ProjectSettings()
         self.generalCfg = settings.getConfig()
 
-        self.data = Data(microscope=kwargs.get('microscope'))
-        self.microscope = kwargs.get('microscope')
+        self.data = kwargs.get('data')
+        self.microscope = data.microscope
 
         ProjectBaseWindow.__init__(self, title, minsize=(400, 550), **kwargs)
         self.viewFuncs = {VIEW_WIZARD: BoxWizardView}
@@ -93,7 +93,7 @@ class BoxWizardWindow(ProjectBaseWindow):
         header.columnconfigure(1, weight=1)
         #header.columnconfigure(2, weight=1)
         # Create the SCIPION logo label
-        cwd = os.getcwd()
+        cwd = os.path.dirname(__file__)
         logoPath = os.path.join(cwd, 'resources', 'scilifelab-logo.png')
         logoImg = self.getImage(logoPath, maxheight=50)
 
@@ -682,5 +682,9 @@ if __name__ == "__main__":
     else:
         microscope = MICROSCOPES[0]
 
-    wizWindow = BoxWizardWindow(microscope=microscope)
+    # Assume the data folder is in the same place as this script
+    dataFolder = os.path.join(os.path.dirname(__file__), 'data')
+
+    data = Data(dataFolder=dataFolder, microscope=microscope)
+    wizWindow = BoxWizardWindow(data=data)
     wizWindow.show()
