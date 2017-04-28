@@ -390,10 +390,10 @@ class BoxWizardView(tk.Frame):
         projPath = self.data.getProjectFolder()
         scipionProjPath = self.data.getScipionProjectFolder()
 
-        if os.path.exists(projPath):
-            errors.append("The project folder: '%s' already exists. \n"
-                          "This should not happens, contact the facility "
-                          "staff. " % projPath)
+        #if os.path.exists(projPath):
+        #    errors.append("The project folder: '%s' already exists. \n"
+        #                  "This should not happens, contact the facility "
+        #                  "staff. " % projPath)
 
         if not errors:
             if os.path.exists(scipionProjPath):
@@ -416,21 +416,25 @@ class BoxWizardView(tk.Frame):
 
     def _createDataFolder(self, projPath, scipionProjPath):
         def _createPath(p):
+            if os.path.exists(p):
+                sys.stdout.write("Path '%s' exists, not need to create it.\n" % p)
+                return
             # Create the project path
             sys.stdout.write("Creating path '%s' ... " % p)
             pwutils.makePath(p)
             sys.stdout.write("DONE\n")
 
         _createPath(projPath)
-        readmeFile = open(os.path.join(projPath, 'README.txt'), 'w')
+        now = dt.datetime.now()
+        dateTuple = (now.year, now.month, now.day)
+        readmeFile = open(os.path.join(projPath, 'README_%04d%02d%02d.txt' % dateTuple), 'w')
         u = self.data.getSelectedUser()
         r = self.data.getSelectedReservation()
 
         readmeFile.write("name: %s\n" % u.name)
         readmeFile.write("email: %s\n" % u.email)
         readmeFile.write("description: %s\n" % r.title)
-        now = dt.datetime.now()
-        readmeFile.write("date: %d-%02d-%02d\n" % (now.year, now.month, now.day))
+        readmeFile.write("date: %d-%02d-%02d\n" % dateTuple)
 
         readmeFile.close()
 
