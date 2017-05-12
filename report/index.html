@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<style>
+body {
+ 	border: 0px solid #bdc3c7;
+	padding: 20px;
+	max-width: 700px;
+	width: 80%;
+	margin: 20px auto;
+	font-family: arial, sans-serif; 
+	text-align: justify;
+} 
+
+.quote {
+	border-left: 5px solid #bdc3c7;
+	padding-left: 5px;
+}
+
+.date {
+	color: #3498db;
+	text-transform: uppercase;
+	letter-spacing: 0.2rem;
+}
+
+.post {
+	margin-bottom: 20px;
+}
+
+.breaker {
+	page-break-after: always;
+}
+
+.imgtop {
+	margin-top: 15px;
+	margin-left: 10px;
+	margin-bottom: 15px;
+}
+
+h2 {
+	color: #2c3e50;
+	font-family: arial, sans-serif;
+	font-size: 1.250rem;
+	margin-top: 30px;
+	font-weight: bold;
+}
+
+hr {
+    border: 0;
+    height: 1px;
+    background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+}
+table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+td, th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+}
+
+tr:nth-child(even) {
+    background-color: #dddddd;
+}
+
+# Style for bash scripts: pre tags with class "bash"
+pre.bash {
+ background-color: black;
+ color: grey;
+ font-family: Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+}
+
+.navbar-inverse {
+    background-color: #2e2e2e;
+    box-shadow: 0px 8px 8px -5px #141414; 
+    margin-bottom: 0px;
+    border-radius: 0px;
+    color: white;
+    border-color: #080808;
+    height: 100px;
+    
+}
+
+
+</style>
+
+<head>
+	<title>Swedish National Cryo-EM Facility Report</title>
+	</head>
+<body>
+
+<div class="post">
+
+<div class="navbar-inverse">
+<!-- <img src="http://cytof.scilifelab.se/homepage/static/images/scilogo_white.png"  width="160" />
+-->
+<h1><img src="http://cytof.scilifelab.se/homepage/static/images/scilogo_white.png"  width="160" class="imgtop" />Swedish National Cryo-EM Facility</h1>
+</div>
+
+<h1 style="margin-top: 50px">Access Report</h1>
+
+<h2>General Information </h2>
+
+	<table>
+  <tr>
+    <th>Date</th>
+    <td>2017 / 04 / 04</td>
+  </tr>
+  <tr>
+    <th>Principal Investigator</th>
+    <td>Alexey Amunts</td>
+  </tr>
+  <tr>
+    <th>Institution</th>
+    <td>SciLifeLab</td>
+  <tr>
+    <th>Facility Contact Person</th>
+    <td>Julian Conrad <br/>julian.conrad@scilifelab.se </td>
+  </tr>
+  <tr>
+    <th>Visiting Person</th>
+    <td>Paco Perez <br/>paco.perez@scilifelab.se </td>
+  </tr>
+  
+</table>
+
+<h2>Microscope Settings </h2>
+
+	<table class="breaker">
+  <tr>
+    <th>Parameter</th>
+    <th>Value</th>
+  </tr>
+  <tr>
+    <td>Microscope</td>
+    <td>Titan</td>
+  </tr>
+  <tr>
+    <td>High tension</td>
+    <td>300 kV</td>
+  </tr>
+  <tr>
+    <td>Spherical aberration </td>
+    <td>2.7</td>
+  </tr>
+  <tr>
+    <td>Magnification</td>
+    <td>130 000</td>
+  </tr>
+  <tr>
+    <td>Dose</td>
+    <td>5.260 electrons/px/s <br/> 4.68 electrons/Å2/s <br/> 8s exposure <br/> 37.44 electron/Å2</td>
+  </tr>
+  <tr>
+    <td>Frame range</td>
+    <td>3 to 20</td>
+  </tr>
+  <tr>
+    <td>Defocus range</td>
+    <td>-2 to -4 um</td>
+  </tr>
+  <tr>
+    <td>Condensers</td>
+    <td>1: 2000<br/>2: 70<br/>3: Manual</td>
+  </tr>
+</table>
+
+
+<h2>2) Atlas of the Grid</h2>
+<p style="text-align:center"><img src="images/atlas.png" width="600" /></p>
+
+<h2>3) Example Grid Square</h2>
+<p style="text-align:center"><img src="images/grid-square-40mm.png" width="600" /> <br />
+Defocus: 40 mm</p>
+<p style="text-align:center"><img src="images/grid-square-60um.png" width="600" /> <br />
+Defocus: 60 um</p>
+
+
+<h2>4) Example Micrograph</h2>
+<p style="text-align:center" class="breaker"><img src="images/micrograph.png" width="600" /></p>
+
+<!--- <hr> -->
+<h2> 5) Data Access </h2>
+
+
+<p>We kindly ask you to download your data as soon as possible and confirm with your contact person at the Cryo-EM facility that your data can be deleted. The download server is data.cryoem.se and currently we recommend to use rsync + ssh for downloading your data. For latest instructions please log in to the server with ssh, using the username and password that has been provided to you. </p>
+
+<pre class="bash">
+$ ssh USERNAME@data.cryoem.se (ssh cem00090@data.cryoem.se)
+</pre>
+
+<p>
+A client that supports the SFTP protocol should work too. 
+Settings for e.g. <a href="https://filezilla-project.org/">FileZilla</a> are: </p>
+<pre>
+Host: sftp://data.cryoem.se
+Port: 22
+Username & password as provided to you
+</pre>
+
+<p>Just to remind you what is stored in which folder:</p>
+
+<pre>
+/home/cem00090/data/
+	cem00090_atlas_20170317 contains the EPU output for the atlas acquisition
+	cem00090_grid3_epu_20170317 contains the EPU output for the image acquisition
+	k2_frames contains raw data as single frames
+</pre>
+
+<h2>6) Data pre-processing </h2>
+
+<p>You will find the preprocessed data in folder:</p>
+
+<pre>
+/home/cem00090/data/cem00090_scipion/Runs
+
+	000002_ProtImportMovies contains stacked movie frames
+
+	000088_ProtMotionCorr 
+		contains motion corrected averages of the movie frames 
+		(frames_aligned_mic.mrc for non dose-weighted average, which we use for CTF estimation 
+		and frames_aligned_mic_DW.mrc for dose-weighted average, which we use for 2D and 3D analysis)
+
+	000185_ProtCTFFind contains CTF estimates from CTFFind4 
+      aborted
+	000280_ProtCTFFind contains CTF estimates from CTFFind4 
+      option 1(settings: resolution 0.05 to 0.11)
+	000375_ProtCTFFind contains CTF estimates from CTFFind4 
+      option 2 (settings: resolution 0.05 to 0.17)
+	000235_ProtMonitorSummary contains the summary of pre-processing for 000185_ProtCTFFind
+	000330_ProtMonitorSummary contains the summary of pre-processing for 000375_ProtCTFFind
+	000425_ProtRelionExportCtf contains export file for ctf parameters from option1/000280_ProtCTFFind
+	000452_ProtRelionExportCtf contains export file for ctf parameters from option2/000375_ProtCTFFind
+
+</pre>
+
+<p class="quote"><b>Note 1</b>: If you want to run Relion for data processing, you may want to run it above those directories from the /Run folder.</p>
+
+<p class="quote"><b>Note 2</b>: You may want to redo the CTF estimation using your own settings. You could also use the micrographs_ctf_000452.star or micrographs_ctf_000425.star file, which you could directly import into relion. Please note, that you may want to exchange the non-DW file with the DW-file micrographs.</p>
+
+
+</div>
+
+</body>
+</html>
