@@ -10,17 +10,23 @@ from user import loadUsers
 
 class Data():
     def __init__(self, **kwargs):
+        self.dataFolder = kwargs['dataFolder']
         self.microscope = kwargs['microscope']
 
-        self._users = loadUsers()
+        usersFn = self.getDataFile('users.csv')
+        self._users = loadUsers(usersFn)
         self._usersDict = {}
+
         for u in self._users:
             self._usersDict[u.email.get()] = u
             u.isStaff = self._isUserStaff(u)
 
-        self._reservations = loadReservations()
+        reservationsFn = self.getDataFile('reservations.csv')
+        self._reservations = loadReservations(reservationsFn)
 
-        self._orders = loadOrders()
+        ordersFn = self.getDataFile('orders.json')
+        self._orders = loadOrders(ordersFn)
+
         self._accepted = []
         for o in self._orders:
             if o.status == 'accepted':
@@ -31,9 +37,11 @@ class Data():
         self.projectType = None
         self.projectId = None
         self.group = None
+        self.cemCode = None
 
-        now = dt.datetime.now()
-        todayReservations = self.findReservationFromDate(now, self.microscope)
+        self.now = dt.datetime.now()
+        todayReservations = self.findReservationFromDate(self.now,
+                                                         self.microscope)
 
         if todayReservations:
             r = todayReservations[0]
@@ -48,6 +56,9 @@ class Data():
                 self.selectProjectType(projType)
         else:
             print "No reservation found today for '%s'" % self.microscope
+
+    def getDataFile(self, filename):
+        return os.path.join(self.dataFolder, filename)
 
     def getReservations(self):
         return self._reservations
@@ -85,6 +96,9 @@ class Data():
 
     def getSelectedUser(self):
         return self.user
+
+    def getSelectedReservation(self):
+        return self._selectedReservation
 
     def selectProjectType(self, projType):
         self.projectType = projType
@@ -139,7 +153,10 @@ class Data():
         return [o.name.get().lower() for o in self._accepted]
 
     def getScipionProject(self):
-        return '%s_scipion' % self.getProjectId()
+        now = self.now
+        return '%s_scipion_%04d%02d%02d' % (self.getProjectId(),
+                                            now.year, now.month, now.day)
+
 
     def getScipionProjectFolder(self):
         return os.path.join(self.getProjectFolder(), self.getScipionProject())

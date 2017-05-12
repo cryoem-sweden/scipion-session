@@ -68,8 +68,8 @@ class BoxWizardWindow(ProjectBaseWindow):
         settings = ProjectSettings()
         self.generalCfg = settings.getConfig()
 
-        self.data = Data(microscope=kwargs.get('microscope'))
-        self.microscope = kwargs.get('microscope')
+        self.data = kwargs.get('data')
+        self.microscope = data.microscope
 
         ProjectBaseWindow.__init__(self, title, minsize=(400, 550), **kwargs)
         self.viewFuncs = {VIEW_WIZARD: BoxWizardView}
@@ -93,7 +93,7 @@ class BoxWizardWindow(ProjectBaseWindow):
         header.columnconfigure(1, weight=1)
         #header.columnconfigure(2, weight=1)
         # Create the SCIPION logo label
-        cwd = os.getcwd()
+        cwd = os.path.dirname(__file__)
         logoPath = os.path.join(cwd, 'resources', 'scilifelab-logo.png')
         logoImg = self.getImage(logoPath, maxheight=50)
 
@@ -390,10 +390,10 @@ class BoxWizardView(tk.Frame):
         projPath = self.data.getProjectFolder()
         scipionProjPath = self.data.getScipionProjectFolder()
 
-        if os.path.exists(projPath):
-            errors.append("The project folder: '%s' already exists. \n"
-                          "This should not happens, contact the facility "
-                          "staff. " % projPath)
+        #if os.path.exists(projPath):
+        #    errors.append("The project folder: '%s' already exists. \n"
+        #                  "This should not happens, contact the facility "
+        #                  "staff. " % projPath)
 
         if not errors:
             if os.path.exists(scipionProjPath):
@@ -416,19 +416,25 @@ class BoxWizardView(tk.Frame):
 
     def _createDataFolder(self, projPath, scipionProjPath):
         def _createPath(p):
+            if os.path.exists(p):
+                sys.stdout.write("Path '%s' exists, not need to create it.\n" % p)
+                return
             # Create the project path
             sys.stdout.write("Creating path '%s' ... " % p)
             pwutils.makePath(p)
             sys.stdout.write("DONE\n")
 
         _createPath(projPath)
-        readmeFile = open(os.path.join(projPath, 'README.txt'), 'w')
+        now = dt.datetime.now()
+        dateTuple = (now.year, now.month, now.day)
+        readmeFile = open(os.path.join(projPath, 'README_%04d%02d%02d.txt' % dateTuple), 'w')
         u = self.data.getSelectedUser()
+        r = self.data.getSelectedReservation()
+
         readmeFile.write("name: %s\n" % u.name)
         readmeFile.write("email: %s\n" % u.email)
-        readmeFile.write("description: %s\n")
-        now = dt.datetime.now()
-        readmeFile.write("data: %d-%02d-%02d\n" % (now.year, now.month, now.day))
+        readmeFile.write("description: %s\n" % r.title)
+        readmeFile.write("date: %d-%02d-%02d\n" % dateTuple)
 
         readmeFile.close()
 
@@ -438,7 +444,7 @@ class BoxWizardView(tk.Frame):
         manager = Manager()
         project = manager.createProject(projName, location=scipionProjPath)
         self.lastProt = None
-        pattern = self._getConfValue(PATTERN)
+
 
         smtpServer = self._getConfValue(SMTP_SERVER, '')
         smtpFrom = self._getConfValue(SMTP_FROM, '')
@@ -455,9 +461,8 @@ class BoxWizardView(tk.Frame):
         cs = getMicSetting(CS)
         voltage = getMicSetting(VOLTAGE)
 
-        kwargs = {}
-
         isK2 = camera == K2
+        pattern = CAMERA_SETTINGS[camera][PATTERN]
 
         protImport = project.newProtocol(em.ProtImportMovies,
                                          objLabel='Import movies',
@@ -521,6 +526,7 @@ class BoxWizardView(tk.Frame):
                                          objLabel='Motioncorr',
                                          useMotioncor2=useMC2,
                                          doComputeMicThumbnail=True,
+                                         computeAllFramesAvg=True,
                                          **kwargs)
             _saveProtocol(protMC)
 
@@ -565,7 +571,10 @@ class BoxWizardView(tk.Frame):
             from pyworkflow.em.packages.gctf import ProtGctf
             protGCTF = project.newProtocol(ProtGctf,
                                            objLabel='Gctf',
-                                          lowRes=lowRes, highRes=highRes)
+                                           lowRes=lowRes, highRes=highRes,
+                                           doEPA=True,
+                                           doHighRes=True,
+                                           )
             protGCTF.inputMicrographs.set(lastBeforeCTF)
             protGCTF.inputMicrographs.setExtended('outputMicrographs')
             _saveProtocol(protGCTF, movies=False)
@@ -608,6 +617,9 @@ class BoxWizardView(tk.Frame):
 
     def _updateData(self):
         if self.data.getProjectType() is None:
+            self._setVarValue(PROJECT_TYPE, '')
+            self._showWidgets(PROJECT_ID, False)
+            self._showWidgets(PROJECT_FOLDER, False)
             return
 
         if self.data.isNational():
@@ -619,6 +631,8 @@ class BoxWizardView(tk.Frame):
         projId = self.data.getProjectId()
 
         if projId is None:
+            self._showWidgets(PROJECT_FOLDER, False)
+            self._setVarValue(PROJECT_ID, '')
             return
 
         self._setVarValue(PROJECT_ID, projId)
@@ -642,6 +656,7 @@ class BoxWizardView(tk.Frame):
 
     def _onProjectTypeChanged(self, *args):
         projectType = self._getVarValue(PROJECT_TYPE)
+
         if not projectType:
             return
 
@@ -671,5 +686,9 @@ if __name__ == "__main__":
     else:
         microscope = MICROSCOPES[0]
 
-    wizWindow = BoxWizardWindow(microscope=microscope)
+    # Assume the data folder is in the same place as this script
+    dataFolder = os.path.join(os.path.dirname(__file__), 'data')
+
+    data = Data(dataFolder=dataFolder, microscope=microscope)
+    wizWindow = BoxWizardWindow(data=data)
     wizWindow.show()
