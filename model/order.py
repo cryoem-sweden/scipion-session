@@ -6,10 +6,26 @@ from base import DataObject
 
 class Order(DataObject):
     # List of attributes that will be set as UString
-    ATTR_STR = ['name', 'status', 'title', 'iuid', 'tags', 'modified',
+    ATTR_STR = ['identifier', 'status', 'title', 'iuid', 'tags', 'modified',
                 'fields', 'ownerEmail']
     # List of attributes that will be set with the type they come
-    ATTR_RAW = ['history', 'owner']
+    ATTR_RAW = ['history', 'owner', 'fields']
+
+    def getId(self):
+        """ Return CEM code """
+        return self.identifier.get().lower()
+
+    def getTitle(self):
+        return self.title.get()
+
+    def getPi(self):
+        return self.fields['project_pi']
+
+    def getPiEmail(self):
+        return self.fields['pi_email']
+
+    def getInvoiceAddress(self):
+        return self.fields['project_invoice_addess']
 
 
 def loadOrders(jsonFile='data/orders.json'):
@@ -19,19 +35,20 @@ def loadOrders(jsonFile='data/orders.json'):
 
     data = json.load(dataFile)
 
-    if 'items' not in data:
-        raise Exception('Expecting a "items" section in data dict. ')
+    #if 'items' not in data:
+    #    raise Exception('Expecting a "items" section in data dict. ')
 
-    items = data['items']
+    #items = data['items']
+    items = data
 
     orders = []
     for i, u in enumerate(items):
         # Get only the name of the status
-        u['status'] = u['status']['name']
+        #print u['status'], type(u['status'])
+        #u['status'] = u['status']['name']
         # Extract owner email
         u['ownerEmail'] = u['owner']['email']
         orders.append(Order(**u))
-        #pwutils.prettyDict(u)
 
     dataFile.close()
 

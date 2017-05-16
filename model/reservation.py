@@ -37,6 +37,9 @@ class Reservation(DataObject):
     def endDate(self):
         return self._endDate
 
+    def getDuration(self):
+        return self.endDate() - self.beginDate()
+
     def isActiveToday(self):
         return self.isActiveOnDay(dt.datetime.now())
 
@@ -51,7 +54,7 @@ class Reservation(DataObject):
         return self.cemCode
 
     def isNationalFacility(self):
-        return self.getCemCode() is None
+        return self.getCemCode() is not None
 
 
 def loadReservations(reservationsCsvFile='data/reservations.csv'):

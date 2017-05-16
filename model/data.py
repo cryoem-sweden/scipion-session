@@ -11,7 +11,7 @@ from user import loadUsers
 class Data():
     def __init__(self, **kwargs):
         self.dataFolder = kwargs['dataFolder']
-        self.microscope = kwargs['microscope']
+        self.microscope = kwargs.get('microscope', None)
 
         usersFn = self.getDataFile('users.csv')
         self._users = loadUsers(usersFn)
@@ -24,11 +24,16 @@ class Data():
         reservationsFn = self.getDataFile('reservations.csv')
         self._reservations = loadReservations(reservationsFn)
 
-        ordersFn = self.getDataFile('orders.json')
+        ordersFn = self.getDataFile('orders_detailed.json')
         self._orders = loadOrders(ordersFn)
 
         self._accepted = []
+        self._ordersDict = {}
+
         for o in self._orders:
+            print o.getId()
+            self._ordersDict[o.getId()] = o
+
             if o.status == 'accepted':
                 self._accepted.append(o)
 
@@ -46,14 +51,15 @@ class Data():
         if todayReservations:
             r = todayReservations[0]
             self._selectedReservation = r
-            self.selectUser(r.user)
-            # For staff users we will try to determine if the project
-            # is internal or national facility
-            if self.user.isStaff:
-                self.cemCode = r.getCemCode()
-                # Set the project type to either internal or national facility
-                projType = PROJECT_TYPES[1 if self.cemCode is None else 0]
-                self.selectProjectType(projType)
+            if r.user is not None:
+                self.selectUser(r.user)
+                # For staff users we will try to determine if the project
+                # is internal or national facility
+                if self.user.isStaff:
+                    self.cemCode = r.getCemCode()
+                    # Set the project type to either internal or national facility
+                    projType = PROJECT_TYPES[1 if self.cemCode is None else 0]
+                    self.selectProjectType(projType)
         else:
             print "No reservation found today for '%s'" % self.microscope
 
@@ -62,6 +68,9 @@ class Data():
 
     def getReservations(self):
         return self._reservations
+
+    def getOrder(self, cemCode):
+        return self._ordersDict[cemCode.lower()]
 
     def _isUserStaff(self, user):
         return user.email.get() in STAFF
