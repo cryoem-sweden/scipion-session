@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<style>
+body {
+ 	border: 0px solid #bdc3c7;
+	padding: 20px;
+	max-width: 700px;
+	width: 80%;
+	margin: 20px auto;
+	font-family: arial, sans-serif; 
+	text-align: justify;
+} 
+
+.quote {
+	border-left: 5px solid #bdc3c7;
+	padding-left: 5px;
+}
+
+.date {
+	color: #3498db;
+	text-transform: uppercase;
+	letter-spacing: 0.2rem;
+}
+
+.post {
+	margin-bottom: 20px;
+}
+
+.breaker {
+	page-break-after: always;
+}
+
+.imgtop {
+	margin-top: 15px;
+	margin-left: 10px;
+	margin-bottom: 15px;
+}
+
+h2 {
+	color: #2c3e50;
+	font-family: arial, sans-serif;
+	font-size: 1.250rem;
+	margin-top: 30px;
+	font-weight: bold;
+}
+
+hr {
+    border: 0;
+    height: 1px;
+    background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+}
+table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+td, th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+    width: 150px;
+}
+
+tr:nth-child(even) {
+    background-color: #dddddd;
+}
+
+td:nth-child(even) {
+	width: 400px;
+}
+
+# Style for bash scripts: pre tags with class "bash"
+pre.bash {
+ background-color: black;
+ color: grey;
+ font-family: Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+}
+
+.navbar-inverse {
+    background-color: #2e2e2e;
+    box-shadow: 0px 8px 8px -5px #141414; 
+    margin-bottom: 0px;
+    border-radius: 0px;
+    color: white;
+    border-color: #080808;
+    height: 100px;
+    
+}
+
+
+</style>
+
+<head>
+	<title>Swedish National Cryo-EM Facility - Invoices</title>
+	</head>
+<body>
+	
+<h1> Swedish National Cryo-EM Facility </h1> 
+<h1>Invoices</h1>
+<h2> Period:  
+<!--- PERIOD --->
+</h2>
+
+<!--- INVOICES --->
+
+</div>
+
+</body>
+</html>
