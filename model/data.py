@@ -31,7 +31,6 @@ class Data():
         self._ordersDict = {}
 
         for o in self._orders:
-            print o.getId()
             self._ordersDict[o.getId()] = o
 
             if o.status == 'accepted':
@@ -159,7 +158,7 @@ class Data():
             self.projectId = self._findNextProjectId()
 
     def getNationalProjects(self):
-        return [o.name.get().lower() for o in self._accepted]
+        return [o.getId() for o in self._accepted]
 
     def getScipionProject(self):
         now = self.now
@@ -190,7 +189,7 @@ class Data():
 
     def findReservations(self, conditionFunc):
         """ Find reservations that satisfies the conditionFunc.
-        The correspoinding users will be set.
+        The corresponding users will be set.
         """
         reservations = []
 
