@@ -54,6 +54,13 @@ class Reservation(DataObject):
     def isActiveOnMonth(self, month):
         return self.beginDate().month == month or self.endDate().month == month
 
+    def startsOnDay(self, date):
+        day = dt.datetime(year=date.year, month=date.month, day=date.day)
+        return self.beginDate() == day
+
+    def startsToday(self):
+        return self.startsOnDay(dt.datetime.now())
+
     def getCemCode(self):
         return self.cemCode
 

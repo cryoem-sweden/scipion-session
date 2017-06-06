@@ -67,7 +67,17 @@ class Data():
                                                          self.microscope)
 
         if todayReservations:
+            n = len(todayReservations)
+            # If there are more than one reservation (probably some overlapping
+            # in the booking system), take the first one that starts today
             r = todayReservations[0]
+            print "n: ", n
+            if n > 1:
+                for tr in todayReservations:
+                    if tr.startsToday():
+                        r = tr
+                        break
+
             self._selectedReservation = r
             if r.user is not None:
                 self.selectUser(r.user)
