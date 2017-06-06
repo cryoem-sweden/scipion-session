@@ -1,10 +1,11 @@
 
 import os
 import datetime as dt
+import json
 
 from config import *
 from order import loadOrders
-from reservation import loadReservations
+from reservation import BookingManager, loadReservationsFromJson
 from user import loadUsers
 
 
@@ -21,8 +22,26 @@ class Data():
             self._usersDict[u.email.get()] = u
             u.isStaff = self._isUserStaff(u)
 
-        reservationsFn = self.getDataFile('reservations.csv')
-        self._reservations = loadReservations(reservationsFn)
+        # Try to read the reservations from the booking system
+        # in case of a failure, try to read from cached-file
+        reservationsFn = self.getDataFile('reservations.json')
+        userJsonFn = self.getDataFile('booked-user.json')
+        try:
+            bMan = BookingManager()
+            print "Loading reservations from booking system..."
+            from pyworkflow.utils import Timer
+            t = Timer()
+            t.tic()
+            reservationsJson = bMan.fetchReservationsJson(userJsonFn)
+            t.toc()
+            with open(reservationsFn, 'w') as reservationsFile:
+                json.dump(reservationsJson, reservationsFile)
+        except:
+            print "Loading reservations from: ", reservationsFn
+            reservationsJson = json.load(open(reservationsFn))
+
+        self._reservations = loadReservationsFromJson(reservationsJson)
+        print "Loaded reservations: ", len(self._reservations)
 
         ordersFn = self.getDataFile('orders_detailed.json')
         self._orders = loadOrders(ordersFn)

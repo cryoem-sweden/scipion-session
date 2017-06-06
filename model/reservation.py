@@ -5,6 +5,9 @@ that can book the microscope and can start a session.
 
 import re
 import datetime as dt
+import json
+import requests
+
 from base import DataObject, parseCsv
 
 CEM_REGEX = re.compile("(cem\d{5})")
@@ -12,7 +15,8 @@ CEM_REGEX = re.compile("(cem\d{5})")
 
 class Reservation(DataObject):
     # List of attributes that will be set as UString
-    ATTR_STR = ['username', 'resource', 'title', 'begin', 'end', 'reference']
+    ATTR_STR = ['username', 'resource', 'title', 'begin', 'end', 'reference',
+                'userId', 'resourceId']
 
     def __init__(self, **kwargs):
         DataObject.__init__(self, **kwargs)
@@ -27,9 +31,9 @@ class Reservation(DataObject):
 
     def _getDate(self, attrName):
         value = self.getAttributeValue(attrName)
-        month, day = value.strip().split()[1].split('/')
-        now = dt.datetime.now()
-        return dt.datetime(year=now.year, month=int(month), day=int(day))
+        # Sample datetime: 2017-06-06T21:00:00+0000
+        year, month, day = value.strip().split('T')[0].split('-')
+        return dt.datetime(year=int(year), month=int(month), day=int(day))
 
     def beginDate(self):
         return self._beginDate
@@ -57,28 +61,95 @@ class Reservation(DataObject):
         return self.getCemCode() is not None
 
 
-def loadReservations(reservationsCsvFile='data/reservations.csv'):
+def loadReservations(reservationsFile='data/reservations.json'):
     """ Load a list of order objects from a given json file.
     """
-    dataFile = open(reservationsCsvFile)
+    dataFile = open(reservationsFile)
+    return loadReservationsFromJson(json.load(dataFile))
 
-    # We assume that the header line contains the following string
-    headerString = '"User","Resource","Title","Description","Begin","End"'
 
+def loadReservationsFromJson(dataJson):
     reservations = []
 
-    for row in parseCsv(reservationsCsvFile):
+    for item in dataJson['reservations']:
         # Remove weird code form the name part
-        username = row[0].replace('{title} {resourcename}', '')
-        reservations.append(Reservation(username=username.strip(),
-                                        resource=row[1],
-                                        title=row[2],
-                                        begin=row[4],
-                                        end=row[5],
-                                        reference=row[9]))
-        #for i, p in enumerate(row):
-        #    print "%02d: %s" % (i, p)
-
+        username = '%s %s' % (item['firstName'], item['lastName'])
+        reservations.append(Reservation(username=username,
+                                        resource=item['resourceName'],
+                                        resourceId=item['resourceId'],
+                                        title=item['title'],
+                                        begin=item['startDate'],
+                                        end=item['endDate'],
+                                        reference=item['referenceNumber'],
+                                        userId=item['userId']
+                                        ))
     return reservations
 
 
+class BookingManager():
+    """ Helper class to interact with the booking system.
+    """
+    BASE_URL = 'http://cryoem-sverige.bookedscheduler.com/Web/Services/index.php/'
+
+    def getUrl(self, suffix):
+        return self.BASE_URL + suffix
+
+    def login(self, userJson):
+        """ Login the given user.
+        Params:
+            userJson: input json dict with the username and password.
+        Returns:
+            A dict with headers required for next operations.
+        """
+        url = self.getUrl('Authentication/Authenticate')
+        response = requests.post(url, data=json.dumps(userJson))
+
+        if response.status_code != 200:
+            print("Error", response.status_code)
+            return None
+        else:
+            rJson = response.json()
+            # Return headers needed for any further operation
+            return {'userId': rJson['userId'],
+                    'sessionToken': rJson['sessionToken']
+                    }
+
+    def getHeaders(self, userToken):
+        return {'X-Booked-UserId': userToken['userId'],
+                'X-Booked-SessionToken': userToken['sessionToken']
+                }
+
+    def getReservations(self, headers):
+        """ Retrieve the reservations, given the user credentials in header. """
+        url = self.getUrl('Reservations/')
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            print("Error", response.status_code)
+            return None
+        else:
+            rJson = response.json()
+            # Return headers needed for any further operation
+            return rJson
+
+    def logout(self, userToken):
+        url = self.getUrl('Authentication/SignOut')
+        response = requests.post(url, data=json.dumps(userToken))
+        if response.status_code != 200:
+            print("Error", response.status_code)
+        else:
+            print("Session closed.")
+
+    def fetchReservationsJson(self, userJsonFileName):
+        """ Retrieve the reservations from the booking system using the
+        credentials of the given user.
+         (in a json file {"username": "pp", "password": "kk"} )
+        """
+        with open(userJsonFileName) as userFile:
+            userJson = json.load(userFile)
+            # userToken should be a dict containing
+            # 'userId' and 'sessionToken' keys
+            userToken = self.login(userJson)
+            headers = self.getHeaders(userToken)
+            return self.getReservations(headers)
+
+        return None
