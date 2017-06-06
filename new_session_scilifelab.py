@@ -93,7 +93,7 @@ class BoxWizardWindow(ProjectBaseWindow):
         header.columnconfigure(1, weight=1)
         #header.columnconfigure(2, weight=1)
         # Create the SCIPION logo label
-        cwd = os.path.dirname(__file__)
+        cwd = os.path.dirname(os.path.abspath(__file__))
         logoPath = os.path.join(cwd, 'resources', 'scilifelab-logo.png')
         logoImg = self.getImage(logoPath, maxheight=50)
 
