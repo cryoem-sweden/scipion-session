@@ -5,7 +5,7 @@ import json
 
 from config import *
 from order import loadOrders
-from reservation import BookingManager, loadReservationsFromJson
+from reservation import loadReservations
 from user import loadUsers
 
 
@@ -13,6 +13,9 @@ class Data():
     def __init__(self, **kwargs):
         self.dataFolder = kwargs['dataFolder']
         self.microscope = kwargs.get('microscope', None)
+        self.now = dt.datetime.now()
+        self.date = kwargs.get('date', self.now)
+        print "Using day: ", self.date
 
         usersFn = self.getDataFile('users.csv')
         self._users = loadUsers(usersFn)
@@ -26,24 +29,11 @@ class Data():
         # in case of a failure, try to read from cached-file
         reservationsFn = self.getDataFile('reservations.json')
         userJsonFn = self.getDataFile('booked-user.json')
-        try:
-            bMan = BookingManager()
-            print "Loading reservations from booking system..."
-            from pyworkflow.utils import Timer
-            t = Timer()
-            t.tic()
-            reservationsJson = bMan.fetchReservationsJson(userJsonFn)
-            t.toc()
-            with open(reservationsFn, 'w') as reservationsFile:
-                json.dump(reservationsJson, reservationsFile)
-        except:
-            print "Loading reservations from: ", reservationsFn
-            reservationsJson = json.load(open(reservationsFn))
-
-        self._reservations = loadReservationsFromJson(reservationsJson)
+        self._reservations = loadReservations(userJsonFn, reservationsFn)
         print "Loaded reservations: ", len(self._reservations)
 
         ordersFn = self.getDataFile('orders_detailed.json')
+        ordersFn = self.getDataFile('orders.json')
         self._orders = loadOrders(ordersFn)
 
         self._accepted = []
@@ -62,8 +52,7 @@ class Data():
         self.group = None
         self.cemCode = None
 
-        self.now = dt.datetime.now()
-        todayReservations = self.findReservationFromDate(self.now,
+        todayReservations = self.findReservationFromDate(self.date,
                                                          self.microscope)
 
         if todayReservations:

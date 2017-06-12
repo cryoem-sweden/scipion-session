@@ -32,25 +32,26 @@ def loadOrders(jsonFile='data/orders.json'):
     """ Load a list of order objects from a given json file.
     """
     dataFile = open(jsonFile)
+    orders = loadOrdersFromJson(json.load(dataFile))
+    dataFile.close()
+    return orders
 
-    data = json.load(dataFile)
 
-    #if 'items' not in data:
+def loadOrdersFromJson(ordersJson):
+    # if 'items' not in data:
     #    raise Exception('Expecting a "items" section in data dict. ')
 
-    #items = data['items']
-    items = data
+    items = ordersJson['items']
+    #items = ordersJson
 
     orders = []
     for i, u in enumerate(items):
         # Get only the name of the status
-        #print u['status'], type(u['status'])
-        #u['status'] = u['status']['name']
+        # print u['status'], type(u['status'])
+        # u['status'] = u['status']['name']
         # Extract owner email
         u['ownerEmail'] = u['owner']['email']
         orders.append(Order(**u))
-
-    dataFile.close()
 
     return orders
 

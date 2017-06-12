@@ -8,9 +8,16 @@ the standard 'urllib' module.
 """
 
 import json
-
-# http://docs.python-requests.org/en/master/
 import requests
+
+import pyworkflow.utils as pwutils
+
+from model.order import loadOrdersFromJson
+
+
+t = pwutils.Timer()
+
+t.tic()
 
 apiJson = json.load(open('data/api.json'))
 
@@ -29,20 +36,26 @@ else:
     ordersFile.close()
     allList = []
 
-    for item in itemsJson['items']:
-        orderUrl = item['links']['api']['href']
-        cemCode = item['identifier']
-        print "Downloading order: ", cemCode
-        response = requests.get(orderUrl, headers=headers)
-        orderJson = response.json()
-        # orderFile = open('data/orders/%s.json' % cemCode, 'w')
-        # json.dump(orderJson, orderFile, indent=2)
-        # orderFile.close()
-        allList.append(orderJson)
+    # for item in itemsJson['items']:
+    #     orderUrl = item['links']['api']['href']
+    #     cemCode = item['identifier']
+    #     print "Downloading order: ", cemCode
+    #     response = requests.get(orderUrl, headers=headers)
+    #     orderJson = response.json()
+    #     # orderFile = open('data/orders/%s.json' % cemCode, 'w')
+    #     # json.dump(orderJson, orderFile, indent=2)
+    #     # orderFile.close()
+    #     allList.append(orderJson)
 
     allOrdersFn = 'data/orders_detailed.json'
     allFile = open(allOrdersFn, 'w')
     print "Writing orders info to: ", allOrdersFn
     json.dump(allList, allFile, indent=2)
     allFile.close()
+
+    orders = loadOrdersFromJson(itemsJson)
+
+    print "orders: ", len(orders)
     #print(json.dumps(response.json(), indent=2))
+
+t.toc()

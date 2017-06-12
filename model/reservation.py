@@ -8,6 +8,8 @@ import datetime as dt
 import json
 import requests
 
+import pyworkflow.utils as pwutis
+
 from base import DataObject, parseCsv
 
 CEM_REGEX = re.compile("(cem\d{5})")
@@ -68,11 +70,40 @@ class Reservation(DataObject):
         return self.getCemCode() is not None
 
 
-def loadReservations(reservationsFile='data/reservations.json'):
-    """ Load a list of order objects from a given json file.
+def loadReservations(userJsonFn, reservationsJsonFn):
+    """ Load reservation list either from the booking system or from a
+    local json file with cached data.
+    Params:
+        userJsonFn: user credentials to login into the booking system
+        reservationsJsonFile: local file to use in case the reservations can
+        not be load from the booking system.
     """
-    dataFile = open(reservationsFile)
-    return loadReservationsFromJson(json.load(dataFile))
+    try:
+        bMan = BookingManager()
+        print "Loading reservations from booking system..."
+
+        t = pwutis.Timer()
+        t.tic()
+        reservationsJson = bMan.fetchReservationsJson(userJsonFn)
+        t.toc()
+        with open(reservationsJsonFn, 'w') as reservationsFile:
+            json.dump(reservationsJson, reservationsFile)
+    except:
+        print "Loading reservations from: ", reservationsJsonFn
+        jsonFile = open(reservationsJsonFn)
+        reservationsJson = json.load(jsonFile)
+        jsonFile.close()
+
+    return loadReservationsFromJson(reservationsJson)
+
+
+def loadReservationsFromFile(reservationsJsonFile):
+    """ Load a list of order objects from a given json file.
+        """
+    dataFile = open(reservationsJsonFile)
+    reservations = loadReservationsFromJson(json.load(dataFile))
+    dataFile.close()
+    return reservations
 
 
 def loadReservationsFromJson(dataJson):
