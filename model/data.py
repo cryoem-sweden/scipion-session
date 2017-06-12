@@ -6,7 +6,8 @@ import json
 from config import *
 from order import loadOrders
 from reservation import loadReservations
-from user import loadUsers
+from user import loadUsersFromJsonFile
+from datasource.portal import PortalManager
 
 
 class Data():
@@ -17,8 +18,13 @@ class Data():
         self.date = kwargs.get('date', self.now)
         print "Using day: ", self.date
 
-        usersFn = self.getDataFile('users.csv')
-        self._users = loadUsers(usersFn)
+        apiJsonFile = self.getDataFile('portal-api.json')
+        pMan = PortalManager(apiJsonFile)
+        # Fetch orders from the Portal and write to a json file
+        users = pMan.fetchAccountsJson()
+
+        usersFn = self.getDataFile('test-booked-users.json')
+        self._users = loadUsersFromJsonFile(usersFn)
         self._usersDict = {}
 
         for u in self._users:
@@ -90,10 +96,10 @@ class Data():
         return self._ordersDict[cemCode.lower()]
 
     def _isUserStaff(self, user):
-        return user.email.get() in STAFF
+        return user.getEmail() in STAFF
 
     def getUserString(self, user):
-        return "%s  --  %s" % (user.name.get(), user.email.get())
+        return "%s  --  %s" % (user.getFullName(), user.getEmail())
 
     def getUserStringList(self):
         usList = []
@@ -141,7 +147,7 @@ class Data():
         return self.projectType
 
     def getProjectGroup(self):
-        return 'cem' if self.isNational() else self.user.group.get()
+        return 'cem' if self.isNational() else self.user.getGroup()
 
     def getDataFolder(self):
         # Work around the 'int' folder prefix
@@ -190,10 +196,10 @@ class Data():
     def findUserFromReservation(self, reservation):
         """ Find the user of the given reservation .
         """
-        username = reservation.username.get()
+        userId = reservation.userId.get()
 
         for u in self._users:
-            if username in u.name.get():
+            if userId == u.bookedId.get():
                 return u
 
         return None

@@ -38,14 +38,8 @@ def loadOrders(jsonFile='data/orders.json'):
 
 
 def loadOrdersFromJson(ordersJson):
-    # if 'items' not in data:
-    #    raise Exception('Expecting a "items" section in data dict. ')
-
-    items = ordersJson['items']
-    #items = ordersJson
-
     orders = []
-    for i, u in enumerate(items):
+    for i, u in enumerate(ordersJson):
         # Get only the name of the status
         # print u['status'], type(u['status'])
         # u['status'] = u['status']['name']

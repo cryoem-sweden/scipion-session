@@ -11,6 +11,8 @@ import requests
 import pyworkflow.utils as pwutis
 
 from base import DataObject, parseCsv
+from datasource.booking import BookingManager
+
 
 CEM_REGEX = re.compile("(cem\d{5})")
 
@@ -122,72 +124,3 @@ def loadReservationsFromJson(dataJson):
                                         userId=item['userId']
                                         ))
     return reservations
-
-
-class BookingManager():
-    """ Helper class to interact with the booking system.
-    """
-    BASE_URL = 'http://cryoem-sverige.bookedscheduler.com/Web/Services/index.php/'
-
-    def getUrl(self, suffix):
-        return self.BASE_URL + suffix
-
-    def login(self, userJson):
-        """ Login the given user.
-        Params:
-            userJson: input json dict with the username and password.
-        Returns:
-            A dict with headers required for next operations.
-        """
-        url = self.getUrl('Authentication/Authenticate')
-        response = requests.post(url, data=json.dumps(userJson))
-
-        if response.status_code != 200:
-            print("Error", response.status_code)
-            return None
-        else:
-            rJson = response.json()
-            # Return headers needed for any further operation
-            return {'userId': rJson['userId'],
-                    'sessionToken': rJson['sessionToken']
-                    }
-
-    def getHeaders(self, userToken):
-        return {'X-Booked-UserId': userToken['userId'],
-                'X-Booked-SessionToken': userToken['sessionToken']
-                }
-
-    def getReservations(self, headers):
-        """ Retrieve the reservations, given the user credentials in header. """
-        url = self.getUrl('Reservations/')
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            print("Error", response.status_code)
-            return None
-        else:
-            rJson = response.json()
-            # Return headers needed for any further operation
-            return rJson
-
-    def logout(self, userToken):
-        url = self.getUrl('Authentication/SignOut')
-        response = requests.post(url, data=json.dumps(userToken))
-        if response.status_code != 200:
-            print("Error", response.status_code)
-        else:
-            print("Session closed.")
-
-    def fetchReservationsJson(self, userJsonFileName):
-        """ Retrieve the reservations from the booking system using the
-        credentials of the given user.
-         (in a json file {"username": "pp", "password": "kk"} )
-        """
-        with open(userJsonFileName) as userFile:
-            userJson = json.load(userFile)
-            # userToken should be a dict containing
-            # 'userId' and 'sessionToken' keys
-            userToken = self.login(userJson)
-            headers = self.getHeaders(userToken)
-            return self.getReservations(headers)
-
-        return None
