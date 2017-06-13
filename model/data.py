@@ -6,6 +6,7 @@ import json
 from config import *
 from order import loadOrders
 from reservation import loadReservations
+from session import SessionManager
 from user import loadUsersFromJsonFile
 from datasource.portal import PortalManager
 
@@ -23,9 +24,16 @@ class Data():
         # Fetch orders from the Portal and write to a json file
         users = pMan.fetchAccountsJson()
 
+        sessionsFile = self.getDataFile('test-sessions.sqlite')
+        sMan = SessionManager(sessionsFile)
+
+
+
         usersFn = self.getDataFile('test-booked-users.json')
         self._users = loadUsersFromJsonFile(usersFn)
         self._usersDict = {}
+
+
 
         for u in self._users:
             self._usersDict[u.email.get()] = u
