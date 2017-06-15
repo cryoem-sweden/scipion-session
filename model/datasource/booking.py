@@ -5,7 +5,7 @@ that can book the microscope and can start a session.
 
 import json
 import requests
-
+import datetime as dt
 
 
 class BookingManager():
@@ -48,10 +48,10 @@ class BookingManager():
                 'X-Booked-SessionToken': userToken['sessionToken']
                 }
 
-    def getJsonData(self, headers, suffix):
+    def getJsonData(self, headers, suffix, params={}):
         """ Retrieve the reservations, given the user credentials in header. """
         url = self.getUrl(suffix)
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, params=params)
         if response.status_code != 200:
             print("Error", response.status_code)
             return None
@@ -72,7 +72,7 @@ class BookingManager():
     def isUserLogged(self):
         return getattr(self, 'userToken', None) is not None
 
-    def fetchJsonFromUrl(self, userJsonFileName, suffix):
+    def fetchJsonFromUrl(self, userJsonFileName, suffix, params={}):
         """ Retrieve data from a given url suffix from the booking
         system using the provided user credentials.
         """
@@ -82,7 +82,7 @@ class BookingManager():
             # 'userId' and 'sessionToken' keys
             userToken = self.login(userJson)
             headers = self.getHeaders(userToken)
-            jsonData = self.getJsonData(headers, suffix)
+            jsonData = self.getJsonData(headers, suffix, params)
             self.logout(userToken)
             return jsonData
 
@@ -93,7 +93,17 @@ class BookingManager():
         credentials of the given user.
          (in a json file {"username": "pp", "password": "kk"} )
         """
-        return self.fetchJsonFromUrl(userJsonFileName, 'Reservations/')
+        # We are going to fetch reservations from one week before today
+        # and one week after
+        now = dt.datetime.now()
+        week = dt.timedelta(days=7)
+
+        def _format(d):
+            return '%04d-%02d-%02d' % (d.year, d.month, d.day)
+
+        return self.fetchJsonFromUrl(userJsonFileName, 'Reservations/',
+                                     params={'startDateTime': _format(now-week),
+                                             'endDateTime': _format(now+week)})
 
     def fetchUsersJson(self, userJsonFileName):
         """ Retrieve the users list from the booking system using the

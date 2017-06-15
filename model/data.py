@@ -25,15 +25,11 @@ class Data():
         users = pMan.fetchAccountsJson()
 
         sessionsFile = self.getDataFile('test-sessions.sqlite')
-        sMan = SessionManager(sessionsFile)
-
-
+        #sMan = SessionManager(sessionsFile)
 
         usersFn = self.getDataFile('test-booked-users.json')
         self._users = loadUsersFromJsonFile(usersFn)
         self._usersDict = {}
-
-
 
         for u in self._users:
             self._usersDict[u.email.get()] = u
