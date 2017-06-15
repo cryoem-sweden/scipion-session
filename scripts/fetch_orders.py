@@ -32,32 +32,15 @@ ordersFile.close()
 orders = loadOrdersFromJson(ordersJson)
 print "Orders: ", len(orders)
 
+print "Retrieving details for first order: "
+orderDetailsJson = pMan.fetchOrderDetailsJson(ordersJson[10]['identifier'])
+print json.dumps(orderDetailsJson, indent=2)
+
 # Fetch orders from the Portal
-accountsJson = pMan.fetchAccountsJson()
-accountsFile = open('data/test-portal-accounts.json', 'w')
-json.dump(accountsJson, accountsFile, indent=2)
-accountsFile.close()
-print "Accounts: ", len(accountsJson['items'])
-
-# The following code get more info for each order
-#allList = []
-# for item in itemsJson['items']:
-#     orderUrl = item['links']['api']['href']
-#     cemCode = item['identifier']
-#     print "Downloading order: ", cemCode
-#     response = requests.get(orderUrl, headers=headers)
-#     orderJson = response.json()
-#     # orderFile = open('data/orders/%s.json' % cemCode, 'w')
-#     # json.dump(orderJson, orderFile, indent=2)
-#     # orderFile.close()
-#     allList.append(orderJson)
-
-# allOrdersFn = 'data/orders_detailed.json'
-# allFile = open(allOrdersFn, 'w')
-# print "Writing orders info to: ", allOrdersFn
-# json.dump(allList, allFile, indent=2)
-# allFile.close()
-
-
+#accountsJson = pMan.fetchAccountsJson()
+#accountsFile = open('data/test-portal-accounts.json', 'w')
+#json.dump(accountsJson, accountsFile, indent=2)
+#accountsFile.close()
+#print "Accounts: ", len(accountsJson['items'])
 
 t.toc()

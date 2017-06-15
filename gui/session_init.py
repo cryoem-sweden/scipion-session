@@ -374,6 +374,11 @@ class BoxWizardView(tk.Frame):
         return DEFAULTS.get(key, default)
 
     def _onAction(self, e=None):
+
+        # s = self.data.createSession()
+        # s.printAll()
+        # return
+
         errors = []
         # Check the Data folder exists
         projPath = self.data.getProjectFolder()

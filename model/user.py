@@ -10,9 +10,8 @@ from base import DataObject, parseCsv, UString
 
 
 class User(DataObject):
-    # List of attributes that will be set as UString
     ATTR_STR = ['email', 'userName', 'firstName', 'lastName',
-                'phone', 'group', 'bookedId']
+                'phone', 'group', 'lab', 'bookedId']
 
     def getEmail(self):
         return self.email.get()
@@ -29,26 +28,11 @@ class User(DataObject):
     def isStaff(self):
         return getattr('piId', None) == -1
 
+    def getLab(self):
+        return self.lab.get()
 
-# TODO: Rename as loadUsersFromCsv
-def loadUsers(usersCsvFile='data/users.csv'):
-    """ Load a list of order objects from a given json file.
-    """
-    users = []
-    dataFile = open(usersCsvFile)
-
-    for row in parseCsv(usersCsvFile):
-        # Remove weird code form the name part
-        name = row[0].replace('{title} {resourcename}', '')
-        users.append(User(name=name.strip(),
-                          username=row[1].strip(),
-                          email=row[2].strip(),
-                          phone=row[3].strip(),
-                          group=row[4].strip().lower()))
-
-    dataFile.close()
-
-    return users
+    def getId(self):
+        return self.bookedId.get()
 
 
 def loadUsersFromJsonFile(usersJsonFn):
@@ -60,13 +44,18 @@ def loadUsersFromJsonFile(usersJsonFn):
 
 
 def userFromBookedJson(u):
-     return User(email=u['emailAddress'],
-                  userName=u['userName'],
-                  firstName=u['firstName'],
-                  lastName=u['lastName'],
-                  phone=u['phoneNumber'],
-                  group=u['organization'],
-                  bookedId=u['id'])
+    parts = u['organization'].split()
+    group = parts[0]
+    lab = parts[1] if len(parts) > 1 else ''
+
+    return User(email=u['emailAddress'],
+                userName=u['userName'],
+                firstName=u['firstName'],
+                lastName=u['lastName'],
+                phone=u['phoneNumber'],
+                group=group,
+                lab=lab,
+                bookedId=u['id'])
 
 
 def userFromAccountJson(a):

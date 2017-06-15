@@ -20,22 +20,28 @@ class PortalManager():
     def _getUrl(self, suffix):
         return self._baseUrl + suffix
 
-    def _fetchJsonFromUrl(self, suffix):
+    def _fetchJsonFromUrl(self, url):
 
-        response = requests.get(self._getUrl(suffix),
-                                headers=self._headers)
+        response = requests.get(url, headers=self._headers)
 
         if response.status_code != 200:
             print(response.status_code)
             return None
         else:
             return response.json()
-            ordersFile = open('data/orders.json', 'w')
+
+    def _fetchJsonFromUrlSuffix(self, suffix):
+        return self._fetchJsonFromUrl(self._getUrl(suffix))
 
     def fetchOrdersJson(self):
         """ Fetch orders from the booking system. """
-        return self._fetchJsonFromUrl('orders?recent=False')['items']
+        return self._fetchJsonFromUrlSuffix('orders?recent=False')['items']
+
+    def fetchOrderDetailsJson(self, orderCEM):
+        return self._fetchJsonFromUrlSuffix('order/%s' % orderCEM.upper())
+        #orderUrl = orderJson['links']['api']['href']
+        #return self._fetchJsonFromUrl(orderUrl)
 
     def fetchAccountsJson(self):
         """ Retrieve the users list from the portal system. """
-        return self._fetchJsonFromUrl('accounts')
+        return self._fetchJsonFromUrlSuffix('accounts')

@@ -6,7 +6,7 @@ import json
 from config import *
 from order import loadOrders
 from reservation import loadReservations
-from session import SessionManager
+from session import SessionManager, Session, Person
 from user import loadUsersFromJsonFile
 from datasource.portal import PortalManager
 
@@ -20,20 +20,25 @@ class Data():
         print "Using day: ", self.date
 
         apiJsonFile = self.getDataFile('portal-api.json')
-        pMan = PortalManager(apiJsonFile)
+        self.pMan = PortalManager(apiJsonFile)
         # Fetch orders from the Portal and write to a json file
-        users = pMan.fetchAccountsJson()
+        #users = self.pMan.fetchAccountsJson()
 
         sessionsFile = self.getDataFile('test-sessions.sqlite')
-        #sMan = SessionManager(sessionsFile)
+        sMan = SessionManager(sessionsFile)
 
-        usersFn = self.getDataFile('test-booked-users.json')
+        usersFn = self.getDataFile('booked-users-list.json')
         self._users = loadUsersFromJsonFile(usersFn)
         self._usersDict = {}
 
         for u in self._users:
             self._usersDict[u.email.get()] = u
             u.isStaff = self._isUserStaff(u)
+
+        with open(self.getDataFile('labs.json')) as labsJsonFile:
+            self._labInfo = json.load(labsJsonFile)
+
+        print json.dumps(self._labInfo, indent=2)
 
         # Try to read the reservations from the booking system
         # in case of a failure, try to read from cached-file
@@ -89,6 +94,28 @@ class Data():
                     self.selectProjectType(projType)
         else:
             print "No reservation found today for '%s'" % self.microscope
+
+    def createSession(self):
+        s = Session()
+        u = self.getSelectedUser()
+        s.userId.set(u.getId())
+        s.user = Person(name=u.getFullName(), email=u.getEmail())
+
+        if self.isNational():
+            s.cemCode.set(self.cemCode)
+            orderJson = self.pMan.fetchOrderDetailsJson(self.cemCode)
+            s.pi = Person(name=orderJson['fields']['project_pi'],
+                          email=orderJson['fields']['pi_email'])
+            s.invoice.set({'address': orderJson['fields']['project_invoice_addess']})
+        else:
+            lab = u.getLab()
+            if lab in self._labInfo:
+                li = self._labInfo[lab]
+                s.pi = Person(name=li['pi_name'], email=li['pi_email'])
+                s.invoice.set({'address': li['invoice_address']})
+
+
+        return s
 
     def getDataFile(self, filename):
         return os.path.join(self.dataFolder, filename)

@@ -26,6 +26,22 @@ class UString(String):
         return self._objValue
 
 
+class JsonDict(UString):
+    """ Very simple string value for encoding dict as json.
+    Only should be used though set/get methods.
+    """
+    def _convertValue(self, value):
+        if isinstance(value, dict):
+            v = json.dumps(value)
+        else:
+            v = UString._convertValue(self, value)
+
+        return v
+
+    def get(self):
+        return json.loads(self._objValue)
+
+
 class DataObject(OrderedObject):
     """ Class to simply store string attributes passed
     as key=value pairs in the constructor.

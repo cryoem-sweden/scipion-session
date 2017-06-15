@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-wkhtmltopdf --zoom 3 index.html report.pdf
+wkhtmltopdf --zoom 1 index.html report.pdf

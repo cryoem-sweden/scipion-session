@@ -23,29 +23,20 @@ if __name__ == "__main__":
     bMan = BookingManager()
     bookedUserFn = '%s/booked-user.json' % dataFolder
     uJson = bMan.fetchUsersJson(bookedUserFn)
+    bookedUsersListFn = '%s/booked-users-list.json' % dataFolder
+    with open(bookedUsersListFn, 'w') as usersFile:
+        json.dump(uJson, usersFile, indent=2)
+
     t.toc()
 
-    print 'Users: ', len(uJson)
+    print 'Users: ', len(uJson['users'])
 
     # Fetch orders from the Portal
-    pMan = PortalManager('data/portal-api.json')
-
-    accountsJson = pMan.fetchAccountsJson()
-    print "Accounts: ", len(accountsJson['items'])
-    accountsFile = open('data/test-portal-accounts.json', 'w')
-    json.dump(accountsJson, accountsFile, indent=2)
-    accountsFile.close()
-
-    users = mergeUsersAccounts(uJson['users'], accountsJson['items'])
-
-    rSqlite = '%s/test-sessions.sqlite' % dataFolder
-    pwutils.cleanPath(rSqlite)
-
-    s = SessionManager(filename=rSqlite)
-
-    uList = s.getUsers()
-    for u in users:
-        uList.append(u)
-
-    uList.write()
+    # pMan = PortalManager('data/portal-api.json')
+    #
+    # accountsJson = pMan.fetchAccountsJson()
+    # print "Accounts: ", len(accountsJson['items'])
+    # accountsFile = open('data/test-portal-accounts.json', 'w')
+    # json.dump(accountsJson, accountsFile, indent=2)
+    # accountsFile.close()
 
