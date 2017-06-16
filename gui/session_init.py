@@ -28,6 +28,7 @@ import os
 import sys
 import re
 import datetime as dt
+import codecs
 import Tkinter as tk
 import ttk
 import tkFont
@@ -129,8 +130,6 @@ class BoxWizardView(tk.Frame):
         self.projDelFont = tkFont.Font(size=smallSize, family=fontName,
                                        weight='bold')
         self.manager = Manager()
-
-
 
         # Header section
         headerFrame = tk.Frame(self, bg='white')
@@ -375,15 +374,17 @@ class BoxWizardView(tk.Frame):
 
     def _onAction(self, e=None):
 
-        # s = self.data.createSession()
-        # s.printAll()
-        # return
 
         errors = []
         # Check the Data folder exists
         projPath = self.data.getProjectFolder()
         scipionProjPath = self.data.getScipionProjectFolder()
         projName = self.data.getScipionProject()
+
+        if (self.data.isNational() and
+            self.data.getOrderDetails() is None):
+            errors.append("Error loading Order %s, check that it is correct. "
+                          % self.data.getProjectId())
 
         if not errors:
             if os.path.exists(scipionProjPath):
@@ -400,6 +401,8 @@ class BoxWizardView(tk.Frame):
             errors.insert(0, "*Errors*:")
             self.windows.showError("\n  - ".join(errors))
         else:
+
+            self.data.storeSession(projPath, projName)
             self._createDataFolder(projPath, scipionProjPath)
             self._createScipionProject(projName, projPath, projPath)
             self.windows.close()
@@ -417,12 +420,13 @@ class BoxWizardView(tk.Frame):
         _createPath(projPath)
         now = dt.datetime.now()
         dateTuple = (now.year, now.month, now.day)
-        readmeFile = open(os.path.join(projPath, 'README_%04d%02d%02d.txt' % dateTuple), 'w')
+        readmeFn = os.path.join(projPath, 'README_%04d%02d%02d.txt' % dateTuple)
+        readmeFile = codecs.open(readmeFn, "w", "utf-8")
         u = self.data.getSelectedUser()
         r = self.data.getSelectedReservation()
 
-        readmeFile.write("name: %s\n" % u.name)
-        readmeFile.write("email: %s\n" % u.email)
+        readmeFile.write("name: %s\n" % u.getFullName())
+        readmeFile.write("email: %s\n" % u.getEmail())
         readmeFile.write("description: %s\n" % r.title)
         readmeFile.write("date: %d-%02d-%02d\n" % dateTuple)
 
@@ -625,6 +629,9 @@ class BoxWizardView(tk.Frame):
             self._setVarValue(PROJECT_ID, '')
             return
 
+        # If we are in a national project, let's load the order details
+        self.data.loadOrderDetails()
+        print "Setting PROJECT_ID: ", projId
         self._setVarValue(PROJECT_ID, projId)
         self._setVarValue(PROJECT_FOLDER, self.data.getProjectFolder())
         self._showWidgets(PROJECT_ID, True)
@@ -654,7 +661,9 @@ class BoxWizardView(tk.Frame):
         self._updateData()
 
     def _onProjectChanged(self, *args):
+        print "here...."
         projectId = self._getVarValue(PROJECT_ID)
+        print "project id: ", projectId
         if not projectId:
             return
 

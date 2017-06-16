@@ -6,10 +6,7 @@ import pyworkflow.object as pwobj
 import pyworkflow.utils as pwutils
 
 from model.datasource.booking import BookingManager
-from model.datasource.portal import PortalManager
-from model.reservation import loadReservationsFromJson
-from model.user import mergeUsersAccounts
-from model.session import SessionManager
+from config import *
 
 
 
@@ -21,9 +18,9 @@ if __name__ == "__main__":
 
     t.tic()
     bMan = BookingManager()
-    bookedUserFn = '%s/booked-user.json' % dataFolder
+    bookedUserFn = getDataFile(BOOKED_LOGIN_USER)
     uJson = bMan.fetchUsersJson(bookedUserFn)
-    bookedUsersListFn = '%s/booked-users-list.json' % dataFolder
+    bookedUsersListFn = getDataFile(BOOKED_USERS_LIST)
     with open(bookedUsersListFn, 'w') as usersFile:
         json.dump(uJson, usersFile, indent=2)
 

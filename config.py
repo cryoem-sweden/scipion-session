@@ -141,6 +141,22 @@ CAMERA_SETTINGS = {
     }
 }
 
+# Some data files under the folder 'data'
+PORTAL_API = 'portal-api.json'
+PORTAL_ORDERS = 'portal-orders.json'
+
+BOOKED_LOGIN_USER = 'booked-user.json'
+BOOKED_USERS_LIST = 'booked-users-list.json'
+BOOKED_RESERVATIONS = 'booked-reservations.json'
+
+# Small json file with PIs information of the internal users
+# in DBB and SciLifeLab
+LABS_FILE = 'labs.json'
+
+# The sqlite file where the sessions are stored
+SESSIONS_FILE = 'sessions.sqlite'
+
+
 """
 
 # Data folder (can be changed per microscope)
@@ -164,3 +180,10 @@ SCIPION_PROJECT = ${PROJECT_ID}_scipion
 #DATA_FOLDER = /data/krios-falcon2
 CS = 2.7
 """
+
+import os
+# Assume the data folder is in the same place as this script
+FILES_DATA_FOLDER = os.path.join(os.path.dirname(__file__), 'data')
+
+def getDataFile(fn):
+    return os.path.join(FILES_DATA_FOLDER, fn)

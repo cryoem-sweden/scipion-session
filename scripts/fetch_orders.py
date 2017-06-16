@@ -9,6 +9,7 @@ the standard 'urllib' module.
 
 import json
 import requests
+from config import *
 
 import pyworkflow.utils as pwutils
 
@@ -20,20 +21,21 @@ t = pwutils.Timer()
 
 t.tic()
 
-apiJsonFile = 'data/portal-api.json'
+apiJsonFile = 'data/%s' % PORTAL_API
 
 pMan = PortalManager(apiJsonFile)
 
 # Fetch orders from the Portal and write to a json file
 ordersJson = pMan.fetchOrdersJson()
-ordersFile = open('data/test-portal-orders.json', 'w')
+ordersFile = open('data/%s' % PORTAL_ORDERS, 'w')
 json.dump(ordersJson, ordersFile, indent=2)
 ordersFile.close()
 orders = loadOrdersFromJson(ordersJson)
 print "Orders: ", len(orders)
 
-print "Retrieving details for first order: "
-orderDetailsJson = pMan.fetchOrderDetailsJson(ordersJson[10]['identifier'])
+orderId = ordersJson[10]['identifier']
+print "Retrieving details for first order: ", orderId
+orderDetailsJson = pMan.fetchOrderDetailsJson(orderId)
 print json.dumps(orderDetailsJson, indent=2)
 
 # Fetch orders from the Portal

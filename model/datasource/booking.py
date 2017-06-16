@@ -88,14 +88,14 @@ class BookingManager():
 
         return None
 
-    def fetchReservationsJson(self, userJsonFileName):
+    def fetchReservationsJson(self, userJsonFileName, date=None):
         """ Retrieve the reservations from the booking system using the
         credentials of the given user.
          (in a json file {"username": "pp", "password": "kk"} )
         """
         # We are going to fetch reservations from one week before today
         # and one week after
-        now = dt.datetime.now()
+        now = date or dt.datetime.now()
         week = dt.timedelta(days=7)
 
         def _format(d):

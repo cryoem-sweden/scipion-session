@@ -72,7 +72,7 @@ class Reservation(DataObject):
         return self.getCemCode() is not None
 
 
-def loadReservations(userJsonFn, reservationsJsonFn):
+def loadReservations(userJsonFn, reservationsJsonFn, date):
     """ Load reservation list either from the booking system or from a
     local json file with cached data.
     Params:
@@ -86,7 +86,7 @@ def loadReservations(userJsonFn, reservationsJsonFn):
 
         t = pwutis.Timer()
         t.tic()
-        reservationsJson = bMan.fetchReservationsJson(userJsonFn)
+        reservationsJson = bMan.fetchReservationsJson(userJsonFn, date)
         t.toc()
         with open(reservationsJsonFn, 'w') as reservationsFile:
             json.dump(reservationsJson, reservationsFile)

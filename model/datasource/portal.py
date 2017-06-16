@@ -21,7 +21,7 @@ class PortalManager():
         return self._baseUrl + suffix
 
     def _fetchJsonFromUrl(self, url):
-
+        print "Retrieving url: ", url
         response = requests.get(url, headers=self._headers)
 
         if response.status_code != 200:

@@ -19,15 +19,15 @@ class Data():
         self.date = kwargs.get('date', self.now)
         print "Using day: ", self.date
 
-        apiJsonFile = self.getDataFile('portal-api.json')
+        apiJsonFile = self.getDataFile(PORTAL_API)
         self.pMan = PortalManager(apiJsonFile)
         # Fetch orders from the Portal and write to a json file
         #users = self.pMan.fetchAccountsJson()
 
-        sessionsFile = self.getDataFile('test-sessions.sqlite')
-        sMan = SessionManager(sessionsFile)
+        sessionsFile = self.getDataFile(SESSIONS_FILE)
+        self.sMan = SessionManager(sessionsFile)
 
-        usersFn = self.getDataFile('booked-users-list.json')
+        usersFn = self.getDataFile(BOOKED_USERS_LIST)
         self._users = loadUsersFromJsonFile(usersFn)
         self._usersDict = {}
 
@@ -35,20 +35,18 @@ class Data():
             self._usersDict[u.email.get()] = u
             u.isStaff = self._isUserStaff(u)
 
-        with open(self.getDataFile('labs.json')) as labsJsonFile:
+        with open(self.getDataFile(LABS_FILE)) as labsJsonFile:
             self._labInfo = json.load(labsJsonFile)
-
-        print json.dumps(self._labInfo, indent=2)
 
         # Try to read the reservations from the booking system
         # in case of a failure, try to read from cached-file
-        reservationsFn = self.getDataFile('reservations.json')
-        userJsonFn = self.getDataFile('booked-user.json')
-        self._reservations = loadReservations(userJsonFn, reservationsFn)
+        reservationsFn = self.getDataFile(BOOKED_RESERVATIONS)
+        userJsonFn = self.getDataFile(BOOKED_LOGIN_USER)
+        self._reservations = loadReservations(userJsonFn, reservationsFn,
+                                              self.date)
         print "Loaded reservations: ", len(self._reservations)
 
-        ordersFn = self.getDataFile('orders_detailed.json')
-        ordersFn = self.getDataFile('orders.json')
+        ordersFn = self.getDataFile(PORTAL_ORDERS)
         self._orders = loadOrders(ordersFn)
 
         self._accepted = []
@@ -69,7 +67,6 @@ class Data():
 
         todayReservations = self.findReservationFromDate(self.date,
                                                          self.microscope)
-
         if todayReservations:
             n = len(todayReservations)
             # If there are more than one reservation (probably some overlapping
@@ -95,18 +92,34 @@ class Data():
         else:
             print "No reservation found today for '%s'" % self.microscope
 
-    def createSession(self):
+    def loadOrderDetails(self):
+        if self.isNational():
+            self._orderJson = self.pMan.fetchOrderDetailsJson(self.cemCode)
+        else:
+            self._orderJson = None
+
+    def getOrderDetails(self):
+        return self._orderJson
+
+    def _createSession(self, projPath, scipionProjName):
         s = Session()
+        s.dataFolder.set(projPath)
+        s.scipionProjectName.set(scipionProjName)
+
         u = self.getSelectedUser()
         s.userId.set(u.getId())
         s.user = Person(name=u.getFullName(), email=u.getEmail())
 
         if self.isNational():
+            print "Selected CEM project: ", self.cemCode
             s.cemCode.set(self.cemCode)
-            orderJson = self.pMan.fetchOrderDetailsJson(self.cemCode)
-            s.pi = Person(name=orderJson['fields']['project_pi'],
-                          email=orderJson['fields']['pi_email'])
-            s.invoice.set({'address': orderJson['fields']['project_invoice_addess']})
+            if self._orderJson is None:
+                raise Exception("Could not retrieve order details for %s" %
+                                self.cemCode)
+            s.pi = Person(name=self._orderJson['fields']['project_pi'],
+                          email=self._orderJson['fields']['pi_email'])
+            address = self._orderJson['fields']['project_invoice_addess']
+            s.invoice.set({'address': address})
         else:
             lab = u.getLab()
             if lab in self._labInfo:
@@ -114,8 +127,11 @@ class Data():
                 s.pi = Person(name=li['pi_name'], email=li['pi_email'])
                 s.invoice.set({'address': li['invoice_address']})
 
-
         return s
+
+    def storeSession(self, projPath, scipionProjName):
+        s = self._createSession(projPath, scipionProjName)
+        self.sMan.storeSession(s)
 
     def getDataFile(self, filename):
         return os.path.join(self.dataFolder, filename)

@@ -1,7 +1,7 @@
 
 import os
 
-import pyworkflow.object as pwobj
+from pyworkflow.object import *
 import pyworkflow.utils as pwutils
 
 from base import DataObject, UString, JsonDict
@@ -18,13 +18,15 @@ class Person(DataObject):
 class Session(DataObject):
     def __init__(self, **kwargs):
         DataObject.__init__(self, **kwargs)
-        self.userId = pwobj.Integer() # From the booking system
+        self.userId = Integer() # From the booking system
         self.cemCode = UString()  # if non-empty, it is a national project
         self.user = Person()
         self.pi = Person()
         self.visitor = Person()
         self.microscopeSettings = JsonDict()  # store a json dict
         self.invoice = JsonDict()  # json dict with 'reference' and 'address'
+        self.dataFolder = UString() # where data is being stored
+        self.scipionProjectName = UString() # scipion project folder
 
 
 class SessionManager():
@@ -34,31 +36,20 @@ class SessionManager():
         self._allSets = {}
 
         def _createSet(prefix):
-            s = pwobj.Set(filename, prefix)
+            s = Set(filename, prefix, classesDict=globals())
             if fileExists:
                 s.loadAllProperties()
-                s.enableAppend()
+                if not s.isEmpty():
+                    s.enableAppend()
             self._allSets[prefix] = s
             return s
 
-        #self._users = _createSet('User')
-        #self._orders = _createSet('Order')
         self._sessions = _createSet('Session')
-
-    def getUsers(self):
-        return self._users
-
-    def getOrders(self):
-        return self._orders
-
-    def getReservations(self):
-        return self._reservations
 
     def getSessions(self):
         return self._sessions
 
-    def commit(self):
-        for s in self._allSets.values():
-            s.write()
-
+    def storeSession(self, session):
+        self._sessions.append(session)
+        self._sessions.write()
 
