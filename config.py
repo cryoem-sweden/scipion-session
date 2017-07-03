@@ -96,12 +96,12 @@ DEFAULTS = {
 
 }
 
-USER_GROUPS = ['cem', 'dbb', 'fac', 'int']
+USER_GROUPS = ['cem', 'dbb', 'fac', 'sll']
 GROUP_DATA = {
     'cem': 'cem',
     'dbb': 'dbb',
     'fac': 'fac',
-    'sll': 'int'
+    'sll': 'sll'
 }
 
 STAFF = ['marta.carroni@scilifelab.se',
