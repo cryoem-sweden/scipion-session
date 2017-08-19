@@ -54,7 +54,6 @@ if __name__ == "__main__":
                 'microscope': MICROSCOPES_ALIAS[args.microscope.lower()]
                 }
     if args.day:
-        print "args.day: ", args.day
         dataArgs['date'] = parseDate(args.day)
 
     data = Data(**dataArgs)
