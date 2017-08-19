@@ -44,9 +44,16 @@ def loadUsersFromJsonFile(usersJsonFn):
 
 
 def userFromBookedJson(u):
-    parts = u['organization'].split()
-    group = parts[0]
-    lab = parts[1] if len(parts) > 1 else ''
+    organization = u['organization']
+    if organization:
+        parts = u['organization'].split()
+        group = parts[0]
+        lab = parts[1] if len(parts) > 1 else ''
+    else:
+        print("Unknown organization for Booking System user: %s %s"
+              % (u['firstName'], u['lastName']))
+        group = 'unknown'
+        lab = ''
 
     return User(email=u['emailAddress'],
                 userName=u['userName'],
