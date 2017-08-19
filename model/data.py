@@ -109,10 +109,11 @@ class Data():
         u = self.getSelectedUser()
         s.userId.set(u.getId())
         s.user = Person(name=u.getFullName(), email=u.getEmail())
+        s.sessionCode.set(self.projectId)
+        s.isNational.set(self.isNational())
+        s.microscope.set(self.microscope)
 
         if self.isNational():
-            print "Selected CEM project: ", self.cemCode
-            s.cemCode.set(self.cemCode)
             if self._orderJson is None:
                 raise Exception("Could not retrieve order details for %s" %
                                 self.cemCode)

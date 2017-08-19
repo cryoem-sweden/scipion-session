@@ -39,7 +39,10 @@ class JsonDict(UString):
         return v
 
     def get(self):
-        return json.loads(self._objValue)
+        if self._objValue is not None:
+            return json.loads(self._objValue)
+
+        return None
 
 
 class DataObject(OrderedObject):
