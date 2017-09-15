@@ -51,11 +51,13 @@ if __name__ == "__main__":
 
     # Assume the data folder is in the same place as this script
     dataArgs = {'dataFolder': os.path.join(os.path.dirname(__file__), 'data'),
-                'microscope': MICROSCOPES_ALIAS[args.microscope.lower()]
+                'microscope': MICROSCOPES_ALIAS[args.microscope.lower()],
+                'date': parseDate(args.day) if args.day else dt.datetime.now()
                 }
-    if args.day:
-        dataArgs['date'] = parseDate(args.day)
 
-    data = Data(**dataArgs)
+    data = Data(dataFolder=os.path.join(os.path.dirname(__file__), 'data'),
+                microscope=MICROSCOPES_ALIAS[args.microscope.lower()],
+                date=parseDate(args.day) if args.day else dt.datetime.now())
+
     wizWindow = BoxWizardWindow(data=data)
     wizWindow.show()

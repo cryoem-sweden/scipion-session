@@ -1,11 +1,51 @@
+#!/usr/bin/env python
+# **************************************************************************
+# *
+# * Authors:     J.M. De la Rosa Trevin (delarosatrevin@scilifelab.se) [1]
+# *
+# * [1] SciLifeLab, Stockholm University
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 2 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# * 02111-1307  USA
+# *
+# *  All comments concerning this program package may be sent to the
+# *  e-mail address 'delarosatrevin@scilifelab.se'
+# *
+# **************************************************************************
 
-import sys
 import os
+import sys
+
 import datetime as dt
-import argparse
 from collections import OrderedDict
 
+
+# Assume the data folder is in the same place as this script
+ROOT = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+
+sys.path.append(ROOT)
+
+# Local imports after ROOT has been added to the path
 from model.data import Data
+
+
+DATA = os.path.join(ROOT, 'data')
+
+def getDataFile(*args):
+    return os.path.join(DATA, *args)
+
 
 TITAN = 'Titan Krios'
 TALOS = 'Talos Arctica'
@@ -19,21 +59,29 @@ def parseDate(dateStr):
     return dt.datetime(year=int(year), month=int(month), day=int(day))
 
 
+def usage(error):
+    print """
+    ERROR: %s
+
+    Usage: generate_invoices.py FROM_DATE TO_DATE
+        Dates must be in the following format: YYYY/MM/DD
+    """ % error
+    sys.exit(1)
+
+
 if __name__ == "__main__":
+    n = len(sys.argv)
 
-    # Assume the data folder is in the same place as this script
-    dataFolder = os.path.join(os.path.dirname(__file__), '..', 'data')
+    if n < 2 or n > 3:
+        usage("Incorrect number of arguments")
 
-    data = Data(dataFolder=dataFolder)
     now = dt.datetime.now()
-    fromDate = dt.datetime(year=2017, month=2, day=1)
-    toDate = dt.datetime(year=2017, month=4, day=30)
+    fromDate = parseDate(sys.argv[1])
+    toDate = parseDate(sys.argv[2])
 
-    def inRange(r):
-        """ True the reservation date is between fromDate and toDate """
-        return r.beginDate() >= fromDate and r.endDate() <= toDate
+    data = Data(dataFolder=DATA, fromDate=fromDate, toDate=toDate)
 
-    reservations = data.findReservations(inRange)
+    reservations = data.getReservations()
 
     if reservations:
         rDict = {}
@@ -50,8 +98,15 @@ if __name__ == "__main__":
             print "-" * 20
             print "CEM: ", cemCode
             o = data.getOrder(cemCode)
+
+            if o is None:
+                print "ERROR: Order not found for this CEM code. "
+                continue
+
             print " title: ", o.getTitle()
             print " order.id: ", o.getId()
+
+            o.fields = data.getOrderDetails(cemCode)['fields']
 
             info = OrderedDict()
             info['Project Code'] = cemCode.upper()

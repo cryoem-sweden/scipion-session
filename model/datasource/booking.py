@@ -88,22 +88,30 @@ class BookingManager():
 
         return None
 
-    def fetchReservationsJson(self, userJsonFileName, date=None):
+    def fetchReservationsJson(self, userJsonFileName,
+                              fromDate=None, toDate=None):
         """ Retrieve the reservations from the booking system using the
         credentials of the given user.
          (in a json file {"username": "pp", "password": "kk"} )
         """
         # We are going to fetch reservations from one week before today
         # and one week after
-        now = date or dt.datetime.now()
+
+        now = dt.datetime.now()
         week = dt.timedelta(days=7)
+
+        if fromDate is None:
+            fromDate = now - week
+
+        if toDate is None:
+            toDate = now + week
 
         def _format(d):
             return '%04d-%02d-%02d' % (d.year, d.month, d.day)
 
         return self.fetchJsonFromUrl(userJsonFileName, 'Reservations/',
-                                     params={'startDateTime': _format(now-week),
-                                             'endDateTime': _format(now+week)})
+                                     params={'startDateTime': _format(fromDate),
+                                             'endDateTime': _format(toDate)})
 
     def fetchUsersJson(self, userJsonFileName):
         """ Retrieve the users list from the booking system using the

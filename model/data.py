@@ -16,7 +16,18 @@ class Data():
         self.dataFolder = kwargs['dataFolder']
         self.microscope = kwargs.get('microscope', None)
         self.now = dt.datetime.now()
-        self.date = kwargs.get('date', self.now)
+        if 'date' in kwargs:
+            self.date = kwargs['date']
+            week = dt.timedelta(days=7)
+            # Retrieve reservations from one week before to one week later
+            # of the current date
+            fromDate = self.date - week
+            toDate = self.date + week
+        elif 'fromDate' in kwargs:
+            fromDate = kwargs['fromDate']
+            toDate = kwargs['toDate']
+            self.date = fromDate
+
         print "Using day: ", self.date
 
         apiJsonFile = self.getDataFile(PORTAL_API)
@@ -42,8 +53,12 @@ class Data():
         # in case of a failure, try to read from cached-file
         reservationsFn = self.getDataFile(BOOKED_RESERVATIONS)
         userJsonFn = self.getDataFile(BOOKED_LOGIN_USER)
+
+
+
+
         self._reservations = loadReservations(userJsonFn, reservationsFn,
-                                              self.date)
+                                              fromDate, toDate)
         print "Loaded reservations: ", len(self._reservations)
 
         ordersFn = self.getDataFile(PORTAL_ORDERS)
@@ -98,8 +113,14 @@ class Data():
         else:
             self._orderJson = None
 
-    def getOrderDetails(self):
-        return self._orderJson
+    def getOrderDetails(self, cemCode=None):
+        """ Return the order details of from the given cemCode, if None
+        return the current loaded order.
+        """
+        if cemCode is None:
+            return self._orderJson
+
+        return self.pMan.fetchOrderDetailsJson(cemCode)
 
     def _createSession(self, projPath, scipionProjName):
         s = Session()
@@ -141,7 +162,7 @@ class Data():
         return self._reservations
 
     def getOrder(self, cemCode):
-        return self._ordersDict[cemCode.lower()]
+        return self._ordersDict.get(cemCode.lower(), None)
 
     def _isUserStaff(self, user):
         return user.getEmail() in STAFF
@@ -214,6 +235,10 @@ class Data():
     def _findNextProjectId(self):
         group = self.getProjectGroup()
         folder = self.getDataFolder()
+
+        if not os.path.exists(folder):
+            return None
+
         last = 0
         for d in os.listdir(folder):
             if os.path.isdir(os.path.join(folder, d)) and d.startswith(group):
