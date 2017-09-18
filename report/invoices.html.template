@@ -92,14 +92,19 @@ pre.bash {
 </style>
 
 <head>
-	<title>Swedish National Cryo-EM Facility - Invoices</title>
+    <!--- TITLE --->
 	</head>
 <body>
 	
 <h1> Swedish National Cryo-EM Facility </h1> 
-<h1>Invoices</h1>
+<h1>
+<!--- INVOICE-TYPE --->
+</h1>
 <h2> Period:  
 <!--- PERIOD --->
+</h2>
+<h2> Generated:
+<!--- TIMESTAMP --->
 </h2>
 
 <!--- INVOICES --->

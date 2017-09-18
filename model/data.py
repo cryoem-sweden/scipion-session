@@ -54,9 +54,6 @@ class Data():
         reservationsFn = self.getDataFile(BOOKED_RESERVATIONS)
         userJsonFn = self.getDataFile(BOOKED_LOGIN_USER)
 
-
-
-
         self._reservations = loadReservations(userJsonFn, reservationsFn,
                                               fromDate, toDate)
         print "Loaded reservations: ", len(self._reservations)
@@ -123,13 +120,11 @@ class Data():
         return self.pMan.fetchOrderDetailsJson(cemCode)
 
     def _createSession(self, projPath, scipionProjName):
-        s = Session()
+        u = self.getSelectedUser()
+        s = self.createSessionFromUser(u)
+
         s.dataFolder.set(projPath)
         s.scipionProjectName.set(scipionProjName)
-
-        u = self.getSelectedUser()
-        s.userId.set(u.getId())
-        s.user = Person(name=u.getFullName(), email=u.getEmail())
         s.sessionCode.set(self.projectId)
         s.isNational.set(self.isNational())
         s.microscope.set(self.microscope)
@@ -143,17 +138,29 @@ class Data():
             address = self._orderJson['fields']['project_invoice_addess']
             s.invoice.set({'address': address})
         else:
-            lab = u.getLab()
-            if lab in self._labInfo:
-                li = self._labInfo[lab]
-                s.pi = Person(name=li['pi_name'], email=li['pi_email'])
-                s.invoice.set({'address': li['invoice_address']})
+            self.setupInternalSession(s, u)
 
         return s
+
+    def createSessionFromUser(self, user):
+        s = Session()
+        s.userId.set(user.getId())
+        s.user = Person(name=user.getFullName(), email=user.getEmail())
+        return s
+
+    def setupInternalSession(self, session, user):
+        lab = user.getLab()
+        if lab in self._labInfo:
+            li = self._labInfo[lab]
+            session.pi = Person(name=li['pi_name'], email=li['pi_email'])
+            session.invoice.set({'address': li['invoice_address']})
 
     def storeSession(self, projPath, scipionProjName):
         s = self._createSession(projPath, scipionProjName)
         self.sMan.storeSession(s)
+
+    def getSessions(self):
+        return self.sMan.getSessions()
 
     def getDataFile(self, filename):
         return os.path.join(self.dataFolder, filename)

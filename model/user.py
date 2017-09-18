@@ -52,7 +52,7 @@ def userFromBookedJson(u):
     else:
         print("Unknown organization for Booking System user: %s %s"
               % (u['firstName'], u['lastName']))
-        group = 'unknown'
+        group = ''
         lab = ''
 
     return User(email=u['emailAddress'],
@@ -71,17 +71,16 @@ def userFromAccountJson(a):
                 firstName=a['first_name'],
                 lastName=a['last_name'],
                 phone=None,
-                group=None,
+                group='',
+                lab='',
                 bookedId=None)
+
 
 def loadUsersFromJson(usersJson):
     """ This will load users from the json retrieved from the
     booking system.
     """
     return [userFromBookedJson(u) for u in usersJson]
-
-
-
 
 
 def mergeUsersAccounts(usersJson, accountsJson):

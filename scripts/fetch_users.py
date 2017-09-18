@@ -2,10 +2,10 @@
 import os
 import json
 
-import pyworkflow.object as pwobj
 import pyworkflow.utils as pwutils
 
 from model.datasource.booking import BookingManager
+from model.user import loadUsersFromJson
 from config import *
 
 
@@ -27,6 +27,25 @@ if __name__ == "__main__":
     t.toc()
 
     print 'Users: ', len(uJson['users'])
+
+    with open(getDataFile(LABS_FILE)) as labsJsonFile:
+        labInfo = json.load(labsJsonFile)
+
+    users = loadUsersFromJson(uJson['users'])
+    # Validate users' organization is well formed
+    for u in users:
+        group = u.getGroup()
+        groupParts = group.split()
+        groupName = groupParts[0].lower()
+
+        if u.getGroup() not in USER_GROUPS:
+            print "ERROR: Wrong group name"
+            u.printAll()
+
+        if u.getGroup() in ['dbb', 'sll'] and not u.getLab() in labInfo:
+            print "ERROR: Wrong lab name"
+            u.printAll()
+
 
     # Fetch orders from the Portal
     # pMan = PortalManager('data/portal-api.json')
