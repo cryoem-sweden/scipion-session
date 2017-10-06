@@ -46,6 +46,8 @@ n = len(sys.argv)
 
 if n < 2 or n > 3:
     usage("Incorrect number of input parameters")
+
+scipionProjPath = sys.argv[2] if n == 3 else None
     
 jsonFn = os.path.abspath(sys.argv[1])
 
@@ -56,7 +58,7 @@ print "Creating project: ", projName
  
 # Create a new project
 manager = Manager()
-proj = manager.createProject(projName)
+proj = manager.createProject(projName, location=scipionProjPath)
 projPath = manager.getProjectPath(projName)
 proj.loadProtocols(jsonFn)
 
