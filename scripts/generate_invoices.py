@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 # **************************************************************************
 # *
 # * Authors:     J.M. De la Rosa Trevin (delarosatrevin@scilifelab.se) [1]
@@ -27,6 +28,7 @@
 
 import os
 import sys
+import codecs
 
 import datetime as dt
 from collections import OrderedDict
@@ -134,11 +136,15 @@ def getInfoFromOrders(reservations):
 
     for r in reservations:
         cemCode = r.getCemCode()
-        print "cemCode: ",
-        if r.isNationalFacility() and r.resource in MICROSCOPES:
-            if cemCode not in rDict:
-                rDict[cemCode] = []
-            rDict[cemCode].append(r)
+        #print "cemCode: ",
+        if r.resource in MICROSCOPES:
+            if r.isNationalFacility():
+                if cemCode not in rDict:
+                    rDict[cemCode] = []
+                rDict[cemCode].append(r)
+            else:
+                if 'cem0' in r.title.get().lower():
+                    print "Not CEM: ", r.title.get()
 
     infoDict = OrderedDict()
 
@@ -151,8 +157,8 @@ def getInfoFromOrders(reservations):
             print "ERROR: Order not found for this CEM code. "
             continue
 
-        print " title: ", o.getTitle()
-        print " order.id: ", o.getId()
+        #print " title: ", o.getTitle()
+        #print " order.id: ", o.getId()
 
         o.fields = data.getOrderDetails(cemCode)['fields']
 
@@ -167,14 +173,15 @@ def getInfoFromOrders(reservations):
         infoDict[cemCode] = info
         dates = []
         days = 0
+
         for r in rDict[cemCode]:
             d = r.beginDate()
-            duration = max(1, r.getDuration().days)
+            duration = max(1, r.getTotalDays())
             days += duration
             dates.append('%04d-%02d-%02d (%s) (%d)' %
                          (d.year, d.month, d.day,
                           r.resource, duration))
-
+        info['Count'] = days
         info['Dates'] = '</br>'.join(dates)
         info['Hours allocated'] = days * 24
         info['Ammount'] = days * 5000
@@ -261,12 +268,20 @@ def getSessionsFromReservations(data):
     return sessions
 
 
+NATIONAL = "National Projects"
+DBB = "DBB"
+SLL = "SciLifeLab"
+FAC = "Facility"
+
+
 
 if __name__ == "__main__":
     n = len(sys.argv)
 
-    if n < 2 or n > 3:
+    if n < 2 or n > 4:
         usage("Incorrect number of arguments")
+
+    stats = '--stats' in sys.argv
 
     now = dt.datetime.now()
     fromDate = parseDate(sys.argv[1])
@@ -277,20 +292,136 @@ if __name__ == "__main__":
     reservations = data.getReservations()
 
     if reservations:
+        allDict = OrderedDict()
+
         # Generate invoices for national facility projects
-        infoDict = getInfoFromOrders(reservations)
-        generateInvoice(infoDict, invoiceType="National Projects")
+        allDict[NATIONAL] = getInfoFromOrders(reservations)
 
         sessions = data.getSessions()
         sessions = getSessionsFromReservations(data)
 
-        # Generate invoices for dbb projects
-        infoDict = getInfoFromInternal(reservations, sessions, group='dbb')
-        generateInvoice(infoDict, invoiceType="DBB")
+        # Writing FAC booking reservations into a CSV file
+        # fn = getDataFile('fac-session.csv')
+        # f = codecs.open(fn, "w", "utf-8")
+        #
+        # print "Writing Facility sessions to: ", fn
+        # for s in sessions:
+        #     sessionCode = s.sessionCode.get()
+        #     if sessionCode.startswith('fac'):
+        #         d = s.reservation.beginDate()
+        #         print >> f,  "%s\t,%s,\t%s,\t%s,\t%s" % (s.reservation.reference.get(),
+        #                                             s.reservation.beginDate(),
+        #                                s.reservation.username.get(),
+        #                                s.microscope.get(),
+        #                                s.reservation.title.get())
+        #
+        # f.close()
+        # sys.exit(1)
+
+        # Reading annotations of Non-FAC bookings
+        annotations = {}
+        fn = getDataFile('fac-session-annotated.csv')
+        f = codecs.open(fn, "r", "utf-8")
+        for line in f:
+            if line.strip():
+                parts = line.strip().split(',')
+                annotations[parts[0]] = parts[-1]
+
+        extraCount = {}
+        MAINTENANCE = 'MAINTENANCE'
+        DOWNTIME = 'DOWNTIME'
+        for group in [FAC, DBB, SLL, DOWNTIME, MAINTENANCE]:
+            extraCount[group] = 0
+
+        for s in sessions:
+            sessionCode = s.sessionCode.get()
+            title = s.reservation.title.get().lower()
+            if sessionCode.startswith('fac'):
+                ref = s.reservation.reference.get()
+                if ref in annotations:
+                    a = annotations[ref].lower()
+                    if 'sll' in a:
+                        extraCount[SLL] += 1
+                    elif 'dbb' in a:
+                        extraCount[DBB] += 1
+                    elif ('fei' in a or 'cryo cycle' in a or
+                          'cryo-cycle' in title or 'cryo cycle' in title):
+                        extraCount[MAINTENANCE] += 1
+                    elif ('downtime' in a or 'downtime' in title or 'down' in title):
+                        extraCount[DOWNTIME] += 1
+                    else:
+                        extraCount[FAC] += 1 # just to decrement later and keep the same value
+                    extraCount[FAC] -= 1
 
         # Generate invoices for dbb projects
-        infoDict = getInfoFromInternal(reservations, sessions, group='sll')
-        generateInvoice(infoDict, invoiceType="SciLifeLab")
+        allDict[DBB] = getInfoFromInternal(reservations, sessions, group='dbb')
+
+        # Generate invoices for dbb projects
+        allDict[SLL] = getInfoFromInternal(reservations, sessions, group='sll')
+
+        # Generate invoices for fac projects
+        allDict[FAC] = getInfoFromInternal(reservations, sessions, group='fac')
+
+        if not stats:
+            for name, infoDict in allDict.iteritems():
+                generateInvoice(infoDict, invoiceType=name)
+        else:
+            # ======= Total distribution of projects ==================
+            total = 0
+            for name, infoDict in allDict.iteritems():
+                if name == NATIONAL:
+                    print "Number of National Projects: ", len(infoDict)
+                    n = 0
+                    for info in infoDict.values():
+                        n += info['Count']
+                else:
+                    n = len(infoDict)
+                if name in extraCount:
+                    n += extraCount[name]
+                print "%s:\t%s" % (name, n)
+                total += n
+
+            for name in [DOWNTIME, MAINTENANCE]:
+                n = extraCount[name]
+                print "%s:\t%s" % (name, n)
+                total += n
+            print "Total:\t%s" % total
+
+
+            # ======= Geographical distribution of National projects =======
+
+            locations = [('stockholm', ['stockholm', 'solna', 'karolinska']),
+                         ('uppsala', ['uppsala']),
+                         ('gothenburg', ['gothenburg', u'göteborg']),
+                         ('linkoping', [u'linköping'])
+                         ]
+
+            def _getLocation(address):
+                addressLower = address.lower()
+                for locName, locAliases in locations:
+                    for loc in locAliases:
+                        if loc in addressLower:
+                            return locName
+                return None
+
+            locationCount = OrderedDict()
+            for loc, _ in locations:
+                locationCount[loc] = 0
+
+            # Geographical distribution of national projects
+            for info in allDict[NATIONAL].values():
+                loc = _getLocation(info['Referens'])
+                if loc:
+                    locationCount[loc] += 1
+                else:
+                    print "Unknown location: ", info['Referens']
+                    #sys.exit(1)
+
+            print locationCount
+
+            # ========== Check wrong CEM bookings =============
+            for info in allDict[FAC].values():
+                codeLower = info['Project Code']
 
     else:
         print "No reservation found. "
