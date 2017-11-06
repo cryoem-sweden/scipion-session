@@ -1,6 +1,8 @@
 
 import os
+import sys
 import json
+import datetime as dt
 
 import pyworkflow.object as pwobj
 import pyworkflow.utils as pwutils
@@ -12,7 +14,19 @@ from model.user import loadUsersFromJson
 from model.session import SessionManager
 
 
+def parseDate(dateStr):
+    """ Get date from YYYY/MM/DD string """
+    year, month, day = dateStr.split('/')
+    return dt.datetime(year=int(year), month=int(month), day=int(day))
+
+
+
 if __name__ == "__main__":
+
+    n = len(sys.argv)
+
+    fromDate = parseDate(sys.argv[1]) if n > 1 else None
+    toDate = parseDate(sys.argv[2]) if n > 2 else None
 
     # Load username and password for booked system
     t = pwutils.Timer()
@@ -20,7 +34,8 @@ if __name__ == "__main__":
     t.tic()
     bMan = BookingManager()
     bookedUserFn = getDataFile(BOOKED_LOGIN_USER)
-    rJson = bMan.fetchReservationsJson(bookedUserFn)
+    rJson = bMan.fetchReservationsJson(bookedUserFn,
+                                       fromDate=fromDate, toDate=toDate)
     uJson = bMan.fetchUsersJson(bookedUserFn)
     t.toc()
 
