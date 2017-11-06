@@ -36,8 +36,11 @@ class Reservation(DataObject):
     def _getDate(self, attrName):
         value = self.getAttributeValue(attrName)
         # Sample datetime: 2017-06-06T21:00:00+0000
-        year, month, day = value.strip().split('T')[0].split('-')
-        return dt.datetime(year=int(year), month=int(month), day=int(day))
+        date, time = value.strip().split('T')
+        year, month, day = date.split('-')
+        hour = time.split(':')[0]
+        return dt.datetime(year=int(year), month=int(month), day=int(day),
+                           hour=int(hour))
 
     def beginDate(self):
         return self._beginDate
@@ -47,6 +50,11 @@ class Reservation(DataObject):
 
     def getDuration(self):
         return self.endDate() - self.beginDate()
+
+    def getTotalDays(self):
+        """ Check the number of days (even partial) of the reservation. """
+        d = self.getDuration()
+        return d.days + (1 if d.seconds//3600 > 0 else 0)
 
     def isActiveToday(self):
         return self.isActiveOnDay(dt.datetime.now())
