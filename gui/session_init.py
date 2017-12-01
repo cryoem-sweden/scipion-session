@@ -373,18 +373,20 @@ class BoxWizardView(tk.Frame):
         return DEFAULTS.get(key, default)
 
     def _onAction(self, e=None):
-
-
         errors = []
-        # Check the Data folder exists
-        projPath = self.data.getProjectFolder()
-        scipionProjPath = self.data.getScipionProjectFolder()
-        projName = self.data.getScipionProject()
+        if self.data.error:
+            errors.append(self.data.error)
 
-        if (self.data.isNational() and
-            self.data.getOrderDetails() is None):
-            errors.append("Error loading Order %s, check that it is correct. "
-                          % self.data.getProjectId())
+        if not errors:
+            # Check the Data folder exists
+            projPath = self.data.getProjectFolder()
+            scipionProjPath = self.data.getScipionProjectFolder()
+            projName = self.data.getScipionProject()
+
+            if (self.data.isNational() and
+                self.data.getOrderDetails() is None):
+                errors.append("Error loading Order %s, check that it is correct. "
+                              % self.data.getProjectId())
 
         if not errors:
             if os.path.exists(scipionProjPath):
@@ -610,6 +612,7 @@ class BoxWizardView(tk.Frame):
         self._showWidgets(FRAMES_RANGE, prep)
 
     def _updateData(self):
+        print "DEBUG: _updateData: projectType: ", self.data.getProjectType()
         if self.data.getProjectType() is None:
             self._setVarValue(PROJECT_TYPE, '')
             self._showWidgets(PROJECT_ID, False)
@@ -622,11 +625,14 @@ class BoxWizardView(tk.Frame):
             options = []
 
         self.projIdCombo.config(values=options)
+
         projId = self.data.getProjectId()
 
         if projId is None:
             self._showWidgets(PROJECT_FOLDER, False)
             self._setVarValue(PROJECT_ID, '')
+            self._setVarValue(PROJECT_FOLDER, self.data.error)
+            self._showWidgets(PROJECT_FOLDER, True)
             return
 
         # If we are in a national project, let's load the order details

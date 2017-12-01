@@ -55,9 +55,7 @@ if __name__ == "__main__":
                 'date': parseDate(args.day) if args.day else dt.datetime.now()
                 }
 
-    data = Data(dataFolder=os.path.join(os.path.dirname(__file__), 'data'),
-                microscope=MICROSCOPES_ALIAS[args.microscope.lower()],
-                date=parseDate(args.day) if args.day else dt.datetime.now())
+    data = Data(**dataArgs)
 
     wizWindow = BoxWizardWindow(data=data)
     wizWindow.show()

@@ -16,6 +16,8 @@ class Data():
         self.dataFolder = kwargs['dataFolder']
         self.microscope = kwargs.get('microscope', None)
         self.now = dt.datetime.now()
+        self.error = ''
+
         if 'date' in kwargs:
             self.date = kwargs['date']
             week = dt.timedelta(days=7)
@@ -240,10 +242,22 @@ class Data():
         return self.projectId
 
     def _findNextProjectId(self):
+        print "Finding next internal project id..."
         group = self.getProjectGroup()
+        print "  group: ", group
+
+        if not group in GROUP_DATA:
+            self.error = ("ERROR!!! Invalid group '%s'. \n"
+                          "Check that the user: %s has the correct "
+                          "information in the BOOKING SYSTEM. "
+                          % (group, self.user.getName()))
         folder = self.getDataFolder()
+        print "  folder: ", folder
 
         if not os.path.exists(folder):
+            self.error = ("ERROR!!! Folder '%s' does not exists. \n"
+                          "This looks like a CONFIGURATION problem. \n"
+                          "Contact the administrator. " % folder)
             return None
 
         last = 0
