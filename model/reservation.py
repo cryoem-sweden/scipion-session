@@ -56,19 +56,24 @@ class Reservation(DataObject):
         d = self.getDuration()
         return d.days + (1 if d.seconds//3600 > 0 else 0)
 
+    def _getDay(self, date):
+        """ Return the datime without hour. """
+        return dt.datetime(year=date.year, month=date.month, day=date.day)
+
     def isActiveToday(self):
         return self.isActiveOnDay(dt.datetime.now())
 
     def isActiveOnDay(self, date):
-        day = dt.datetime(year=date.year, month=date.month, day=date.day)
-        return self.beginDate() <= day and self.endDate() >= day
+        day = self._getDay(date)
+        return (self._getDay(self.beginDate()) <= day and
+                self._getDay(self.endDate()) >= day)
 
     def isActiveOnMonth(self, month):
         return self.beginDate().month == month or self.endDate().month == month
 
     def startsOnDay(self, date):
-        day = dt.datetime(year=date.year, month=date.month, day=date.day)
-        return self.beginDate() == day
+        day = self._getDay(date)
+        return self._getDay(self.beginDate()) == day
 
     def startsToday(self):
         return self.startsOnDay(dt.datetime.now())
