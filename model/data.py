@@ -2,6 +2,7 @@
 import os
 import datetime as dt
 import json
+import re
 
 from config import *
 from order import loadOrders
@@ -263,10 +264,15 @@ class Data():
             return None
 
         last = 0
+        groupRegex = re.compile("%s(\d{5})\Z" % group)
         for d in os.listdir(folder):
-            if os.path.isdir(os.path.join(folder, d)) and d.startswith(group):
-                n = int(d.replace(group, ''))
-                last = max(last, n)
+            if os.path.isdir(os.path.join(folder, d)):
+                m = groupRegex.match(d)
+                if m is None:
+                    print "Warning: Invalid folder %s inside %s" % (d, folder)
+                else:
+                    n = int(m.group(1))
+                    last = max(last, n)
 
         return '%s%05d' % (group, last+1)
 
