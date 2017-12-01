@@ -251,6 +251,8 @@ class Data():
                           "Check that the user: %s has the correct "
                           "information in the BOOKING SYSTEM. "
                           % (group, self.user.getName()))
+            return None
+
         folder = self.getDataFolder()
         print "  folder: ", folder
 
