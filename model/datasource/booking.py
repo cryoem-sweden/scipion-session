@@ -32,7 +32,7 @@ class BookingManager():
         response = requests.post(url, data=json.dumps(userJson))
 
         if response.status_code != 200:
-            print("Error", response.status_code)
+            print("Error login", response.status_code)
             self.userToken = None
         else:
             rJson = response.json()
@@ -53,7 +53,8 @@ class BookingManager():
         url = self.getUrl(suffix)
         response = requests.get(url, headers=headers, params=params)
         if response.status_code != 200:
-            print("Error", response.status_code)
+            print("Error data", response.status_code)
+            print("headers: ", headers, "params", params)
             return None
         else:
             rJson = response.json()
@@ -64,7 +65,7 @@ class BookingManager():
         url = self.getUrl('Authentication/SignOut')
         response = requests.post(url, data=json.dumps(userToken))
         if response.status_code != 200:
-            print("Error", response.status_code)
+            print("Error logout", response.status_code)
         else:
             print("Session closed.")
             self.userToken = None

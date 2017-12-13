@@ -102,11 +102,14 @@ def loadReservations(userJsonFn, reservationsJsonFn, fromDate, toDate):
         t.tic()
         reservationsJson = bMan.fetchReservationsJson(userJsonFn,
                                                       fromDate, toDate)
+        if reservationsJson is None:
+            raise Exception("Could not fetch data from the booking system.")
         t.toc()
         with open(reservationsJsonFn, 'w') as reservationsFile:
             json.dump(reservationsJson, reservationsFile)
-    except:
-        print "Loading reservations from: ", reservationsJsonFn
+    except Exception, ex:
+        print "Error: ", ex
+        print "Trying to load reservations from file:", reservationsJsonFn
         jsonFile = open(reservationsJsonFn)
         reservationsJson = json.load(jsonFile)
         jsonFile.close()
