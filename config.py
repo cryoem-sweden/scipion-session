@@ -3,6 +3,8 @@
 
 VIEW_WIZARD = 'wizardview'
 
+GPU = 'GPU'
+
 # Protocol's contants
 MOTIONCORR = "MOTIONCORR"
 MOTIONCOR2 = "MOTIONCOR2"
@@ -19,6 +21,7 @@ VOLTAGE = "VOLTAGE"
 
 # Some related environment variables
 DATA_FOLDER = 'DATA_FOLDER'
+MOVIES_FOLDER = 'MOVIES_FOLDER'
 USER_NAME = 'USER_NAME'
 SAMPLE_NAME = 'SAMPLE_NAME'
 PROJECT_ID = 'PROJECT_ID'
@@ -89,11 +92,8 @@ DEFAULTS = {
     # HTML report settings
     HTML_REPORT: True,
     HTML_PUBLISH: '',
-
-
     CS: 2.0,
     MAG: 130000
-
 }
 
 USER_GROUPS = ['cem', 'dbb', 'fac', 'sll']
@@ -118,28 +118,47 @@ MICROSCOPES = [TITAN, TALOS]
 MICROSCOPES_ALIAS = {'titan': TITAN, 'talos': TALOS}
 
 K2 = 'K2'
-FALCON2 = 'Falcon2'
-CAMERAS = [K2, FALCON2]
+FALCON3 = 'Falcon3'
+CAMERAS = [K2, FALCON3]
 
 MIC_CAMERAS = {
-    TITAN: [K2, FALCON2],
-    TALOS: [FALCON2]
+    TITAN: [K2, FALCON3],
+    TALOS: [FALCON3]
     }
 
 # Configuration dependent on Microscopes
 MICROSCOPES_SETTINGS = {
-    TITAN: {CS: 2.7, VOLTAGE: 300},
-    TALOS: {CS: 2.7, VOLTAGE: 200}
+    TITAN: {CS: 2.7, VOLTAGE: 300, GPU: [0]},
+    TALOS: {CS: 2.7, VOLTAGE: 200, GPU: [1]}
 }
 
+# Configuration dependent on the Camera
 CAMERA_SETTINGS = {
     K2: {
         PATTERN: "k2_frames/Images-Disc*/GridSquare_*/Data/FoilHole_*.mrc"
     },
-    FALCON2: {
-        PATTERN: "Images-Disc*/GridSquare_*/Data/FoilHole_*frames.mrc",
+    FALCON3: {
+        PATTERN: "Images-Disc*/GridSquare_*/Data/*Fractions.mrc",
     }
 }
+
+# Configuration dependent on Microscope-Camera pair
+MIC_CAMERAS_SETTINGS = {
+    TITAN: {
+        K2: {
+            MOVIES_FOLDER: DATA_FOLDER
+        },
+        FALCON3: {
+            MOVIES_FOLDER: '/mnt/krios-falcon3'
+        }
+    },
+    TALOS: {
+        FALCON3: {
+            MOVIES_FOLDER: '/mnt/talos-falcon3'
+        }
+    }
+}
+
 
 # Some data files under the folder 'data'
 PORTAL_API = 'portal-api.json'

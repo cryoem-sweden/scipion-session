@@ -438,6 +438,7 @@ class BoxWizardView(tk.Frame):
 
     def _createScipionProject(self, projName, projPath, scipionProjPath):
         manager = Manager()
+        projId = self.data.getProjectId()
         project = manager.createProject(projName, location=scipionProjPath)
         self.lastProt = None
 
@@ -456,13 +457,21 @@ class BoxWizardView(tk.Frame):
 
         cs = getMicSetting(CS)
         voltage = getMicSetting(VOLTAGE)
+        # For now lets use only one GPU, the first in the list
+        gpuId = str(getMicSetting(GPU)[0])
 
         isK2 = camera == K2
         pattern = CAMERA_SETTINGS[camera][PATTERN]
 
+        if camera == FALCON3:
+            basePath = MIC_CAMERAS_SETTINGS[microscope][camera][MOVIES_FOLDER]
+            filesPath = os.path.join(basePath, projId) + "_epu"
+        else:
+            filesPath = projPath
+
         protImport = project.newProtocol(em.ProtImportMovies,
                                          objLabel='Import movies',
-                                         filesPath=projPath,
+                                         filesPath=filesPath,
                                          filesPattern=pattern,
                                          voltage=voltage,
                                          sphericalAberration=cs,
@@ -523,6 +532,7 @@ class BoxWizardView(tk.Frame):
                                          useMotioncor2=useMC2,
                                          doComputeMicThumbnail=True,
                                          computeAllFramesAvg=True,
+                                         GPUIDs=gpuId,
                                          **kwargs)
             _saveProtocol(protMC)
 
@@ -570,6 +580,7 @@ class BoxWizardView(tk.Frame):
                                            lowRes=lowRes, highRes=highRes,
                                            doEPA=True,
                                            doHighRes=True,
+                                           GPUCore=gpuId
                                            )
             protGCTF.inputMicrographs.set(lastBeforeCTF)
             protGCTF.inputMicrographs.setExtended('outputMicrographs')
@@ -612,7 +623,7 @@ class BoxWizardView(tk.Frame):
         self._showWidgets(FRAMES_RANGE, prep)
 
     def _updateData(self):
-        print "DEBUG: _updateData: projectType: ", self.data.getProjectType()
+        #print "DEBUG: _updateData: projectType: ", self.data.getProjectType()
         if self.data.getProjectType() is None:
             self._setVarValue(PROJECT_TYPE, '')
             self._showWidgets(PROJECT_ID, False)
@@ -637,7 +648,7 @@ class BoxWizardView(tk.Frame):
 
         # If we are in a national project, let's load the order details
         self.data.loadOrderDetails()
-        print "Setting PROJECT_ID: ", projId
+        #print "Setting PROJECT_ID: ", projId
         self._setVarValue(PROJECT_ID, projId)
         self._setVarValue(PROJECT_FOLDER, self.data.getProjectFolder())
         self._showWidgets(PROJECT_ID, True)
@@ -667,9 +678,7 @@ class BoxWizardView(tk.Frame):
         self._updateData()
 
     def _onProjectChanged(self, *args):
-        print "here...."
         projectId = self._getVarValue(PROJECT_ID)
-        print "project id: ", projectId
         if not projectId:
             return
 
