@@ -238,6 +238,8 @@ class Data():
 
     def setProjectId(self, projId):
         self.projectId = projId
+        if self.isNational():
+            self.cemCode = projId
 
     def getProjectId(self):
         return self.projectId

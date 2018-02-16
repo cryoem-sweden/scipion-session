@@ -623,7 +623,7 @@ class BoxWizardView(tk.Frame):
         self._showWidgets(FRAMES_RANGE, prep)
 
     def _updateData(self):
-        #print "DEBUG: _updateData: projectType: ", self.data.getProjectType()
+        print "DEBUG: _updateData: projectType: ", self.data.getProjectType()
         if self.data.getProjectType() is None:
             self._setVarValue(PROJECT_TYPE, '')
             self._showWidgets(PROJECT_ID, False)
@@ -679,6 +679,7 @@ class BoxWizardView(tk.Frame):
 
     def _onProjectChanged(self, *args):
         projectId = self._getVarValue(PROJECT_ID)
+        print("_onProjectChanged:", projectId)
         if not projectId:
             return
 
