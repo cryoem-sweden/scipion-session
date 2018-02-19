@@ -72,6 +72,9 @@ def parseCsv(csvFilename, skipFirst=True):
     with open(csvFilename) as dataFile:
         dataReader = csv.reader(dataFile)
 
-        for i, row in enumerate(dataReader):
-            if i > 0 or not skipFirst:
-                yield row
+        i = 0
+        for row in dataReader:
+            if row:  # Skip empty lines
+                if i > 0 or not skipFirst:
+                    yield row
+                i += 1
