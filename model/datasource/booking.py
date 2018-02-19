@@ -51,10 +51,14 @@ class BookingManager():
     def getJsonData(self, headers, suffix, params={}):
         """ Retrieve the reservations, given the user credentials in header. """
         url = self.getUrl(suffix)
+        print("Retrieving URL: %s" % url)
+        print("headers: ", headers, "params", params)
+
         response = requests.get(url, headers=headers, params=params)
+
         if response.status_code != 200:
             print("Error data", response.status_code)
-            print("headers: ", headers, "params", params)
+
             return None
         else:
             rJson = response.json()
