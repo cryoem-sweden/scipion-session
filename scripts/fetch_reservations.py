@@ -20,7 +20,6 @@ def parseDate(dateStr):
     return dt.datetime(year=int(year), month=int(month), day=int(day))
 
 
-
 if __name__ == "__main__":
 
     n = len(sys.argv)

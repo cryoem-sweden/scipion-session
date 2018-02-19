@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 This module contains classes and utility functions to deal with users
 that can book the microscope and can start a session.
@@ -14,7 +15,7 @@ from base import DataObject, parseCsv
 from datasource.booking import BookingManager
 
 
-CEM_REGEX = re.compile("(cem\d{5})")
+CEM_REGEX = re.compile("cem(\d+)")
 
 
 class Reservation(DataObject):
@@ -24,14 +25,21 @@ class Reservation(DataObject):
 
     def __init__(self, **kwargs):
         DataObject.__init__(self, **kwargs)
+        self._beginDate = self._getDate('begin')
+        self._endDate = self._getDate('end')
         # Lets check if this reservation is for a national project
         # by parsing the title and checking for a cemXXXXX code
         # both cem and CEM will be recognized
         t = self.title.get().lower()
         m = CEM_REGEX.search(t)
-        self.cemCode = None if m is None else m.groups()[0]
-        self._beginDate = self._getDate('begin')
-        self._endDate = self._getDate('end')
+        if m is None:
+            self.cemCode = None
+        else:
+            digits = m.groups()[0]
+            if len(digits) > 5:
+                print("WARNING: Wrong number of digits for CEM code in: ",
+                      self.title.get())
+            self.cemCode = "cem%05d" % int(digits)
 
     def _getDate(self, attrName):
         value = self.getAttributeValue(attrName)
@@ -146,26 +154,39 @@ def loadReservationsFromJson(dataJson):
 def loadReservationsFromCsv(csvFile):
     """
     Parse reservations from CSV file from the Booking system with the following format:
+Column:  0,      1,    2,         3,      4,      5,            6,                7,     8,           9,          10,    11,       12,
+"Resource","Begin","End","Duration","Hours","Title","Description","Reference Number","User","First Name","Last Name","Email","Created","Last Modified","Status","Check In Time","Check Out Time","Original End",
 
-    "User","Resource","Title","Description","Begin","End","Duration","Created","Last Modified","Reference Number","Check In Time","Check Out Time","Original End",
-
-"Marta Carroni {title} {resourcename}","Talos Arctica","CRYO CYCLE","","Sat, 9/30 9:00 AM","Sun, 10/01 11:00 PM","1 days 14 hours","04/14/2017 12:22:02 PM","","58f0a2ca644f7908614935",,,,
-"Alexander Mühleip {title} {resourcename}","Talos Arctica","AlexM","AlexM","Mon, 10/02 9:00 AM","Mon, 10/02 10:00 AM","1 hours","09/01/2017 7:05:27 PM","","59a993571c159469569353",,,,
-"Alexander Mühleip {title} {resourcename}","Titan Krios","AlexM","AlexM","Wed, 10/04 9:00 AM","Wed, 10/04 10:00 AM","1 hours","09/18/2017 2:10:06 PM","","59bfb79e874d7730204368",,,,
-"Shintaro Aibara {title} {resourcename}","Titan Krios","","","Fri, 10/06 9:00 AM","Sat, 10/07 6:00 PM","1 days 9 hours","09/26/2017 2:20:56 PM","","59ca4628c0fee536094330",,,,
+"Talos Arctica","9/30/17 9:00 AM","10/1/17 11:00 PM","1 days 14 hours","38","CRYO CYCLE","","58f0a2ca644f7908614935","Marta Carroni","Marta","Carroni","marta.carroni@scilifelab.se","4/14/17 12:22 PM","","Created","","","",
+"Titan Krios","10/1/17 9:00 AM","10/1/17 11:00 PM","14 hours","14","CRYO CYCLE and K2 BAKING","","58f0a024efe72490488767","Marta Carroni","Marta","Carroni","marta.carroni@scilifelab.se","8/17/17 3:59 PM","","Created","","","10/1/17 11:00 PM",
+"Talos Arctica","10/2/17 9:00 AM","10/2/17 10:00 AM","1 hours","1","AlexM","AlexM","59a993571c159469569353","Alexander Mühleip","Alexander","Mühleip","alexander.muhleip@scilife","9/1/17 7:05 PM","","Created","","","",
+"Titan Krios","10/4/17 9:00 AM","10/4/17 10:00 AM","1 hours","1","AlexM","AlexM","59bfb79e874d7730204368","Alexander Mühleip","Alexander","Mühleip","alexander.muhleip@scilife","9/18/17 2:10 PM","","Created","","","",
+"Titan Krios","10/6/17 9:00 AM","10/7/17 6:00 PM","1 days 9 hours","33","","","59ca4628c0fee536094330","Shintaro Aibara","Shintaro","Aibara","shintaro.aibara@scilifelab.se","9/26/17 2:20 PM","","Created","","","",
+"Titan Krios","10/9/17 9:00 AM","10/10/17 10:00 PM","1 days 13 hours","37","facility (replacement user lost)","","59a931550676b975035949","Julian Conrad","Julian","Conrad","julian.conrad@scilifelab.se","9/1/17 12:07 PM","10/19/17 4:54 PM","Created","","","10/9/17 5:00 PM",
     """
     reservations = []
 
+    def _convertDateStr(inputDateStr):
+        """ Convert the input data str from the csv report in the booking
+        system to the one expected in the json format
+        '06/06/17 9:00 PM' -> '2017-06-06T21:00:00+0000'
+        """
+        date, hour, m = inputDateStr.split()
+        month, day, year = map(int, date.split('/'))
+        h = int(hour.split(':')[0])
+        if m == 'PM':
+            h += 12
+
+        return "20%d-%02d-%02dT%02d:00:00+0000" % (year, month, day, h)
+
     for row in parseCsv(csvFile):
-        # Remove weird code form the name part
-        parts = row[0][1:-1].split()
-        username = '%s %s' % (parts[0], parts[1])
-        reservations.append(Reservation(username=username,
-                                        resource=row[1],
-                                        resourceId=item['resourceId'],
-                                        title=item['title'],
-                                        begin=item['startDate'],
-                                        end=item['endDate'],
-                                        reference=item['referenceNumber'],
-                                        userId=item['userId']
+        reservations.append(Reservation(username=row[8],
+                                        resource=row[0],
+                                        resourceId=-1, # no resource id in csv
+                                        title=row[5],
+                                        begin=_convertDateStr(row[1]),
+                                        end=_convertDateStr(row[2]),
+                                        reference=row[7],
+                                        userId=-1
                                         ))
+    return reservations
