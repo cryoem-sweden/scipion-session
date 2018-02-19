@@ -142,3 +142,30 @@ def loadReservationsFromJson(dataJson):
                                         userId=item['userId']
                                         ))
     return reservations
+
+def loadReservationsFromCsv(csvFile):
+    """
+    Parse reservations from CSV file from the Booking system with the following format:
+
+    "User","Resource","Title","Description","Begin","End","Duration","Created","Last Modified","Reference Number","Check In Time","Check Out Time","Original End",
+
+"Marta Carroni {title} {resourcename}","Talos Arctica","CRYO CYCLE","","Sat, 9/30 9:00 AM","Sun, 10/01 11:00 PM","1 days 14 hours","04/14/2017 12:22:02 PM","","58f0a2ca644f7908614935",,,,
+"Alexander Mühleip {title} {resourcename}","Talos Arctica","AlexM","AlexM","Mon, 10/02 9:00 AM","Mon, 10/02 10:00 AM","1 hours","09/01/2017 7:05:27 PM","","59a993571c159469569353",,,,
+"Alexander Mühleip {title} {resourcename}","Titan Krios","AlexM","AlexM","Wed, 10/04 9:00 AM","Wed, 10/04 10:00 AM","1 hours","09/18/2017 2:10:06 PM","","59bfb79e874d7730204368",,,,
+"Shintaro Aibara {title} {resourcename}","Titan Krios","","","Fri, 10/06 9:00 AM","Sat, 10/07 6:00 PM","1 days 9 hours","09/26/2017 2:20:56 PM","","59ca4628c0fee536094330",,,,
+    """
+    reservations = []
+
+    for row in parseCsv(csvFile):
+        # Remove weird code form the name part
+        parts = row[0][1:-1].split()
+        username = '%s %s' % (parts[0], parts[1])
+        reservations.append(Reservation(username=username,
+                                        resource=row[1],
+                                        resourceId=item['resourceId'],
+                                        title=item['title'],
+                                        begin=item['startDate'],
+                                        end=item['endDate'],
+                                        reference=item['referenceNumber'],
+                                        userId=item['userId']
+                                        ))
