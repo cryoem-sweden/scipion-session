@@ -28,7 +28,7 @@ def usage(error):
 
 def system(cmd):
     print cmd
-    # os.system(cmd)
+    os.system(cmd)
 
 
 class ProjCode:
