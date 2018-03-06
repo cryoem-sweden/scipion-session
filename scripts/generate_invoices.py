@@ -32,6 +32,7 @@ import codecs
 
 import datetime as dt
 from collections import OrderedDict
+import pyworkflow.utils as pwutils
 
 
 # Assume the data folder is in the same place as this script
@@ -157,9 +158,12 @@ def getInfoFromOrders(reservations):
         o = data.getOrder(cemCode)
 
         if o is None:
-            print "ERROR: Order not found for this CEM code: ", cemCode
+            print(">>> ERROR: Order not found for this CEM code: %s"
+                  % pwutils.redStr(cemCode))
             for r in rDict[cemCode]:
-                r.printAll()
+                print("    Resource: %s (%s - %s)"
+                      % (r.username, r.beginDate(), r.endDate()))
+                print("    User: %s" % r.username)
 
             continue
 
@@ -331,12 +335,12 @@ if __name__ == "__main__":
 
         # Reading annotations of Non-FAC bookings
         annotations = {}
-        fn = getDataFile('fac-session-annotated.csv')
-        f = codecs.open(fn, "r", "utf-8")
-        for line in f:
-            if line.strip():
-                parts = line.strip().split(',')
-                annotations[parts[0]] = parts[-1]
+        # fn = getDataFile('fac-session-annotated.csv')
+        # f = codecs.open(fn, "r", "utf-8")
+        # for line in f:
+        #     if line.strip():
+        #         parts = line.strip().split(',')
+        #         annotations[parts[0]] = parts[-1]
 
         extraCount = {}
         MAINTENANCE = 'MAINTENANCE'
