@@ -187,7 +187,7 @@ def getInfoFromOrders(reservations):
             dates.append('%04d-%02d-%02d (%s) (%d)' %
                          (d.year, d.month, d.day,
                           r.resource, duration))
-        info['Count'] = days
+        info['Count (days)'] = days
         info['Dates'] = '</br>'.join(dates)
         info['Hours allocated'] = days * 24
         info['Amount (SEK)'] = days * 5000
@@ -233,10 +233,10 @@ def getInfoFromInternal(reservations, sessions, group):
                                          s.microscope)
             info['PI'] = '%s </br></br> %s' % (s.pi.name, s.pi.email)
             days = r.getTotalDays()
-            cost = 500 * days
+            cost = 5000 * days
             statsDict['days'] += days
             info['Amount (SEK)'] = cost
-            info['Duration'] = r.getDuration()
+            info['Duration (days)'] = days
             invoice = s.invoice.get()
             if invoice:
                 invoiceAddr = invoice['address']
