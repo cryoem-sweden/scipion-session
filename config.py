@@ -138,7 +138,7 @@ CAMERA_SETTINGS = {
         PATTERN: "k2_frames/Images-Disc*/GridSquare_*/Data/FoilHole_*.mrc"
     },
     FALCON3: {
-        PATTERN: "Images-Disc*/GridSquare_*/Data/*Fractions.mrc",
+        PATTERN: "k3_frames/Images-Disc*/GridSquare_*/Data/*Fractions.mrc",
     }
 }
 
@@ -149,12 +149,12 @@ MIC_CAMERAS_SETTINGS = {
             MOVIES_FOLDER: DATA_FOLDER
         },
         FALCON3: {
-            MOVIES_FOLDER: '/mnt/krios-falcon3'
+            MOVIES_FOLDER: DATA_FOLDER
         }
     },
     TALOS: {
         FALCON3: {
-            MOVIES_FOLDER: '/mnt/talos-falcon3'
+            MOVIES_FOLDER: DATA_FOLDER
         }
     }
 }

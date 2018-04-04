@@ -20,7 +20,7 @@
 # * 02111-1307  USA
 # *
 # *  All comments concerning this program package may be sent to the
-# *  e-mail address 'delarosatrevin@scilifelab.se'
+# *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
 
@@ -463,11 +463,11 @@ class BoxWizardView(tk.Frame):
         isK2 = camera == K2
         pattern = CAMERA_SETTINGS[camera][PATTERN]
 
-        if camera == FALCON3:
-            basePath = MIC_CAMERAS_SETTINGS[microscope][camera][MOVIES_FOLDER]
-            filesPath = os.path.join(basePath, projId) + "_epu"
-        else:
-            filesPath = projPath
+        # if camera == FALCON3:
+        #     basePath = MIC_CAMERAS_SETTINGS[microscope][camera][MOVIES_FOLDER]
+        #     filesPath = os.path.join(basePath, projId) + "_epu"
+        # else:
+        filesPath = projPath
 
         protImport = project.newProtocol(em.ProtImportMovies,
                                          objLabel='Import movies',
@@ -532,7 +532,8 @@ class BoxWizardView(tk.Frame):
                                          useMotioncor2=useMC2,
                                          doComputeMicThumbnail=True,
                                          computeAllFramesAvg=True,
-                                         GPUIDs=gpuId,
+                                         gpuList=gpuId,
+                                         extraProtocolParams='--use_worker_thread',
                                          **kwargs)
             _saveProtocol(protMC)
 
@@ -648,7 +649,6 @@ class BoxWizardView(tk.Frame):
 
         # If we are in a national project, let's load the order details
         self.data.loadOrderDetails()
-        #print "Setting PROJECT_ID: ", projId
         self._setVarValue(PROJECT_ID, projId)
         self._setVarValue(PROJECT_FOLDER, self.data.getProjectFolder())
         self._showWidgets(PROJECT_ID, True)
