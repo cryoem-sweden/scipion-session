@@ -57,8 +57,12 @@ class Data():
         reservationsFn = self.getDataFile(BOOKED_RESERVATIONS)
         userJsonFn = self.getDataFile(BOOKED_LOGIN_USER)
 
-        self._reservations = loadReservations(userJsonFn, reservationsFn,
-                                              fromDate, toDate)
+        try:
+            self._reservations = loadReservations(userJsonFn, reservationsFn,
+                                                  fromDate, toDate)
+        except Exception, ex:
+            self._reservations = []  # work even without reservations
+
         print "Loaded reservations: ", len(self._reservations)
 
         ordersFn = self.getDataFile(PORTAL_ORDERS)
@@ -292,7 +296,6 @@ class Data():
         now = self.now
         return '%s_scipion_%04d%02d%02d' % (self.getProjectId(),
                                             now.year, now.month, now.day)
-
 
     def getScipionProjectFolder(self):
         return os.path.join(self.getProjectFolder(), self.getScipionProject())

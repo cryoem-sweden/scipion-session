@@ -644,7 +644,7 @@ class BoxWizardView(tk.Frame):
             self._showWidgets(PROJECT_FOLDER, False)
             self._setVarValue(PROJECT_ID, '')
             self._setVarValue(PROJECT_FOLDER, self.data.error)
-            self._showWidgets(PROJECT_FOLDER, True)
+            self._showWidgets(PROJECT_ID, True)
             return
 
         # If we are in a national project, let's load the order details
