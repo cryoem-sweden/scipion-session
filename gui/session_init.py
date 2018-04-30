@@ -426,10 +426,11 @@ class BoxWizardView(tk.Frame):
         readmeFile = codecs.open(readmeFn, "w", "utf-8")
         u = self.data.getSelectedUser()
         r = self.data.getSelectedReservation()
+        desc = "Not found" if r is None else r.title
 
         readmeFile.write("name: %s\n" % u.getFullName())
         readmeFile.write("email: %s\n" % u.getEmail())
-        readmeFile.write("description: %s\n" % r.title)
+        readmeFile.write("description: %s\n" % desc)
         readmeFile.write("date: %d-%02d-%02d\n" % dateTuple)
 
         readmeFile.close()

@@ -83,6 +83,7 @@ class Data():
         self.projectId = None
         self.group = None
         self.cemCode = None
+        self._selectedReservation = None
 
         todayReservations = self.findReservationFromDate(self.date,
                                                          self.microscope)
