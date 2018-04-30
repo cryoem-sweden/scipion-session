@@ -348,25 +348,25 @@ if __name__ == "__main__":
         for group in [FAC, DBB, SLL, DOWNTIME, MAINTENANCE]:
             extraCount[group] = 0
 
-        for s in sessions:
-            sessionCode = s.sessionCode.get()
-            title = s.reservation.title.get().lower()
-            if sessionCode.startswith('fac'):
-                ref = s.reservation.reference.get()
-                if ref in annotations:
-                    a = annotations[ref].lower()
-                    if 'sll' in a:
-                        extraCount[SLL] += 1
-                    elif 'dbb' in a:
-                        extraCount[DBB] += 1
-                    elif ('fei' in a or 'cryo cycle' in a or 'maintenance' in title or
-                          'cryo-cycle' in title or 'cryo cycle' in title):
-                        extraCount[MAINTENANCE] += 1
-                    elif ('downtime' in a or 'downtime' in title or 'down' in title):
-                        extraCount[DOWNTIME] += 1
-                    else:
-                        extraCount[FAC] += 1 # just to decrement later and keep the same value
-                    extraCount[FAC] -= 1
+        # for s in sessions:
+        #     sessionCode = s.sessionCode.get()
+        #     title = s.reservation.title.get().lower()
+        #     if sessionCode.startswith('fac'):
+        #         ref = s.reservation.reference.get()
+        #         if ref in annotations:
+        #             a = annotations[ref].lower()
+        #             if 'sll' in a:
+        #                 extraCount[SLL] += 1
+        #             elif 'dbb' in a:
+        #                 extraCount[DBB] += 1
+        #             elif ('fei' in a or 'cryo cycle' in a or 'maintenance' in title or
+        #                   'cryo-cycle' in title or 'cryo cycle' in title):
+        #                 extraCount[MAINTENANCE] += 1
+        #             elif ('downtime' in a or 'downtime' in title or 'down' in title):
+        #                 extraCount[DOWNTIME] += 1
+        #             else:
+        #                 extraCount[FAC] += 1 # just to decrement later and keep the same value
+        #             extraCount[FAC] -= 1
 
         # Generate invoices for dbb projects
         allDict[DBB], allStats[DBB] = getInfoFromInternal(reservations, sessions, group='dbb')
@@ -378,22 +378,23 @@ if __name__ == "__main__":
         allDict[FAC], allStats[FAC] = getInfoFromInternal(reservations, sessions, group='fac')
 
         if not stats:
-            for name, infoDict in allDict.iteritems():
-                generateInvoice(infoDict, name, allStats[name])
+            for name, statDict in allDict.iteritems():
+                generateInvoice(statDict, name, allStats[name])
         else:
             # ======= Total distribution of projects ==================
             total = 0
-            for name, infoDict in allDict.iteritems():
-                if name == NATIONAL:
-                    print "Number of National Projects: ", len(infoDict)
-                    n = 0
-                    for info in infoDict.values():
-                        n += info['Count']
-                else:
-                    n = len(infoDict)
+            for name, statDict in allStats.iteritems():
+                n = statDict['days']
+                # if name == NATIONAL:
+                #     print "Number of National Projects: ", len(statDict)
+                #     n = 0
+                #     for info in statDict.values():
+                #         n += info['days']
+                # else:
+                #     n = len(statDict)
                 if name in extraCount:
                     n += extraCount[name]
-                print "%s:\t%s" % (name, n)
+                print "%s:\t%s:\tdays: %s" % (name, len(allDict[name]), n)
                 total += n
 
             for name in [DOWNTIME, MAINTENANCE]:
@@ -408,7 +409,8 @@ if __name__ == "__main__":
             locations = [('stockholm', ['stockholm', 'solna', 'karolinska']),
                          ('uppsala', ['uppsala']),
                          ('gothenburg', ['gothenburg', u'göteborg']),
-                         ('linkoping', [u'linköping'])
+                         ('linkoping', [u'linköping']),
+                         ('lund', ['lund'])
                          ]
 
             def _getLocation(address):
