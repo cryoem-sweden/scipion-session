@@ -141,10 +141,12 @@ class Data():
             if self._orderJson is None:
                 raise Exception("Could not retrieve order details for %s" %
                                 self.cemCode)
-            s.pi = Person(name=self._orderJson['fields']['project_pi'],
-                          email=self._orderJson['fields']['pi_email'])
-            address = self._orderJson['fields']['project_invoice_addess']
-            s.invoice.set({'address': address})
+            fields = self._orderJson['fields']
+            s.pi = Person(name=fields['project_pi'],
+                          email=fields['fields']['pi_email'])
+            address = fields['project_invoice_addess']
+            reference = fields['invoice_reference']
+            s.invoice.set({'address': address, 'reference': reference})
         else:
             self.setupInternalSession(s, u)
 
@@ -161,7 +163,7 @@ class Data():
         if lab in self._labInfo:
             li = self._labInfo[lab]
             session.pi = Person(name=li['pi_name'], email=li['pi_email'])
-            session.invoice.set({'address': li['invoice_address']})
+            session.invoice.set({'address': li['invoice_address'], 'reference': ''})
 
     def storeSession(self, projPath, scipionProjName):
         s = self._createSession(projPath, scipionProjName)

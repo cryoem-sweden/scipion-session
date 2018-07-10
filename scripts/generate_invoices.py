@@ -73,13 +73,17 @@ def usage(error):
     sys.exit(1)
 
 
+def openFile(fn):
+    import codecs
+    return codecs.open(fn, "w", "utf-8-sig")
+
+
 def generateInvoice(infoDict, invoiceType, statsDict):
     htmlTemplate = open('report/invoices.html.template')
-    import codecs
-
     suffix = invoiceType.lower().replace(' ', '_')
     htmlFn = os.path.join('build', 'invoices_%s.html' % suffix)
-    outputHtml = codecs.open(htmlFn, "w", "utf-8-sig")
+    outputHtml = openFile(htmlFn)
+    now = dt.datetime.now()
 
     def writeEntry(d):
         outputHtml.write("<table>\n")
@@ -115,7 +119,7 @@ def generateInvoice(infoDict, invoiceType, statsDict):
                                 toDate.year, toDate.month, toDate.day,
                                 len(infoDict), statsDict['days']))
         elif '<!--- TIMESTAMP --->' in line:
-            outputHtml.write('%s' % dt.datetime.now())
+            outputHtml.write('%s' % now)
         else:
             outputHtml.write(line)
 
@@ -130,6 +134,39 @@ def generateInvoice(infoDict, invoiceType, statsDict):
     cmd = 'wkhtmltopdf --zoom 3 %s %s' % (htmlFn, pdfFn)
     print cmd
     os.system(cmd)
+
+
+def generateInvoiceCsv(infoDict, invoiceType, statsDict):
+    now = dt.datetime.now()
+    suffix = invoiceType.lower().replace(' ', '_')
+    csvFn = os.path.join('build', 'invoices_%s_%04d%02d%02d.csv'
+                         % (suffix, now.year, now.month, now.day))
+
+    def escape(s):
+        return '"%s"' % unicode(s).replace('\n', ' ').replace('\r', ' ').replace('</br>', '')
+
+    f = openFile(csvFn)
+
+    if f:
+        f.write("# Swedish National Cryo-EM Facility - Invoices: %s\n"
+                % invoiceType)
+        f.write("# from %04d-%02d-%02d to %04d-%02d-%02d  \n"
+                % (fromDate.year, fromDate.month, fromDate.day,
+                   toDate.year, toDate.month, toDate.day))
+        f.write("# Total: %d sessions / %d days \n"
+                % (len(infoDict), statsDict['days']))
+        f.write("# Generated: %s \n" % now)
+
+        first = infoDict.values()[0]
+
+        f.write("\n%s\n" % " , ".join(k for k in first.keys()))
+
+        for d in infoDict.values():
+            f.write(" , ".join(escape(v) for v in d.values()) + '\n')
+
+        print("Written: %s" % csvFn)
+    else:
+        print("Error opening: %s" % csvFn)
 
 
 def getInfoFromOrders(reservations):
@@ -179,7 +216,8 @@ def getInfoFromOrders(reservations):
         info['Dates'] = ''
         info['PI'] = '%s </br></br> %s' % (o.getPi(), o.getPiEmail())
         info['Amount (SEK)'] = 0
-        info['Referens'] = o.getInvoiceAddress()
+        info['Invoice Address'] = o.getInvoiceAddress()
+        info['Invoice Reference'] = o.getInvoiceReference()
         infoDict[cemCode] = info
         dates = []
         days = 0
@@ -243,10 +281,11 @@ def getInfoFromInternal(reservations, sessions, group):
             info['Duration (days)'] = days
             invoice = s.invoice.get()
             if invoice:
-                invoiceAddr = invoice['address']
+                iAddr, iRef = invoice['address'], invoice['reference']
             else:
-                invoiceAddr = ''
-            info['Invoice Address'] = invoiceAddr
+                iAddr, iRef = '', ''
+            info['Invoice Address'] = iAddr
+            info['Invoice Reference'] = iRef
             infoDict[sessionCode+str(i)] = info
             if group == 'fac':
                 info['Title'] = r.title.get()
@@ -379,7 +418,8 @@ if __name__ == "__main__":
 
         if not stats:
             for name, statDict in allDict.iteritems():
-                generateInvoice(statDict, name, allStats[name])
+                #generateInvoice(statDict, name, allStats[name])
+                generateInvoiceCsv(statDict, name, allStats[name])
         else:
             # ======= Total distribution of projects ==================
             total = 0

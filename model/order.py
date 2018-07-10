@@ -27,6 +27,9 @@ class Order(DataObject):
     def getInvoiceAddress(self):
         return self.fields['project_invoice_addess']
 
+    def getInvoiceReference(self):
+        return self.fields.get('invoice_reference', None)
+
 
 def loadOrders(jsonFile='data/orders.json'):
     """ Load a list of order objects from a given json file.
