@@ -480,8 +480,8 @@ class BoxWizardView(tk.Frame):
                                          magnification=None,
                                          dataStreaming=True,
                                          timeout=72000,
-                                         inputIndividualFrames=isK2,
-                                         stackFrames=isK2,
+                                         inputIndividualFrames=False,
+                                         stackFrames=False,
                                          writeMoviesInProject=True
                                          )
 
@@ -510,6 +510,9 @@ class BoxWizardView(tk.Frame):
             if monitor:
                 protMonitor.inputProtocols.append(prot)
 
+        def _newProtocol(*args, **kwargs):
+            return project.newProtocol(*args, **kwargs)
+
         _saveProtocol(protImport, movies=False)
 
         useMC2 = self._getVarValue(MOTIONCOR2)
@@ -525,27 +528,28 @@ class BoxWizardView(tk.Frame):
             kwargs['alignFrame0'] = kwargs['sumFrame0'] = frames[0]
             kwargs['alignFrameN'] = kwargs['sumFrameN'] = frames[1]
 
+        protMC = None
         if useMC:
             # Create motioncorr
             from pyworkflow.em.packages.motioncorr import ProtMotionCorr
-            protMC = project.newProtocol(ProtMotionCorr,
-                                         objLabel='Motioncorr',
-                                         useMotioncor2=useMC2,
-                                         doComputeMicThumbnail=True,
-                                         computeAllFramesAvg=True,
-                                         gpuList=gpuId,
-                                         extraProtocolParams='--use_worker_thread',
-                                         **kwargs)
+            protMC = _newProtocol(ProtMotionCorr,
+                                 objLabel='Motioncorr',
+                                 useMotioncor2=useMC2,
+                                 doComputeMicThumbnail=True,
+                                 computeAllFramesAvg=True,
+                                 gpuList=gpuId,
+                                 extraProtocolParams='--use_worker_thread',
+                                 **kwargs)
             _saveProtocol(protMC)
 
         if useOF:
             # Create Optical Flow protocol
             from pyworkflow.em.packages.xmipp3 import XmippProtOFAlignment
 
-            protOF = project.newProtocol(XmippProtOFAlignment,
-                                         objLabel='Optical Flow',
-                                         doSaveMovie=useSM,
-                                         **kwargs)
+            protOF = _newProtocol(XmippProtOFAlignment,
+                                 objLabel='Optical Flow',
+                                 doSaveMovie=useSM,
+                                 **kwargs)
             _saveProtocol(protOF)
 
         if useSM:
@@ -555,40 +559,95 @@ class BoxWizardView(tk.Frame):
                 kwargs['alignFrameN'] = kwargs['sumFrameN'] = 0
 
             from pyworkflow.em.packages.grigoriefflab import ProtSummovie
-            protSM = project.newProtocol(ProtSummovie,
-                                         objLabel='Summovie',
-                                         cleanInputMovies=useOF,
-                                         numberOfThreads=1,
-                                         **kwargs)
+            protSM = _newProtocol(ProtSummovie,
+                                 objLabel='Summovie',
+                                 cleanInputMovies=useOF,
+                                 numberOfThreads=1,
+                                 **kwargs)
             _saveProtocol(protSM)
 
         lastBeforeCTF = self.lastProt
         lowRes, highRes = 0.03, 0.42
 
+        protCTF = None
         if useCTF:
             from pyworkflow.em.packages.grigoriefflab import ProtCTFFind
-            protCTF = project.newProtocol(ProtCTFFind,
-                                          objLabel='Ctffind',
-                                          numberOfThreads=1,
-                                          lowRes=lowRes, highRes=highRes)
+            protCTF = _newProtocol(ProtCTFFind,
+                                  objLabel='Ctffind',
+                                  numberOfThreads=1,
+                                  lowRes=lowRes, highRes=highRes)
             protCTF.inputMicrographs.set(lastBeforeCTF)
             protCTF.inputMicrographs.setExtended('outputMicrographs')
             _saveProtocol(protCTF, movies=False)
 
         if useGCTF:
             from pyworkflow.em.packages.gctf import ProtGctf
-            protGCTF = project.newProtocol(ProtGctf,
-                                           objLabel='Gctf',
-                                           lowRes=lowRes, highRes=highRes,
-                                           doEPA=True,
-                                           doHighRes=True,
-                                           GPUCore=gpuId
-                                           )
+            protGCTF = _newProtocol(ProtGctf,
+                                    objLabel='Gctf',
+                                    lowRes=lowRes, highRes=highRes,
+                                    windowSize=1024,
+                                    maxDefocus=9.0,
+                                    doEPA=False,
+                                    doHighRes=True,
+                                    gpuList=gpuId)
             protGCTF.inputMicrographs.set(lastBeforeCTF)
             protGCTF.inputMicrographs.setExtended('outputMicrographs')
             _saveProtocol(protGCTF, movies=False)
+            protCTF = protGCTF
 
         project.saveProtocol(protMonitor)
+
+        if protCTF is not None and protMC is not None:
+            from pyworkflow.em.packages.xmipp3 import (XmippProtParticlePicking,
+                                                       XmippParticlePickingAutomatic)
+            # Include picking, extraction and 2D
+            protPick1 = _newProtocol(XmippProtParticlePicking,
+                                     objLabel='xmipp3 - supervised')
+            protPick1.inputMicrographs.set(protMC)
+            protPick1.inputMicrographs.setExtended('outputMicrographsDoseWeighted')
+            _saveProtocol(protPick1, movies=False)
+
+            protPick2 = _newProtocol(XmippParticlePickingAutomatic,
+                                     objLabel='xmipp3 - supervised',
+                                     streamingSleepOnWait=60,
+                                     streamingBatchSize=0)
+            protPick2.xmippParticlePicking.set(protPick1)
+            _saveProtocol(protPick2, movies=False)
+
+            from pyworkflow.em.packages.relion import (ProtRelionExtractParticles,
+                                                       ProtRelionClassify2D)
+
+            protExtract = _newProtocol(ProtRelionExtractParticles,
+                                       objLabel='relion - extract particles',
+                                       doInvert=True,
+                                       doNormalize=True,
+                                       streamingSleepOnWait=60,
+                                       streamingBatchSize=0)
+            protExtract.inputCoordinates.set(protPick2)
+            protExtract.inputCoordinates.setExtended('outputCoordinates')
+            _saveProtocol(protExtract, movies=False)
+
+            prot2D = _newProtocol(ProtRelionClassify2D,
+                                  objLabel='relion 2d - TEMPLATE',
+                                  numberOfClasses=100,
+                                  doGpu=True,
+                                  extraParams="--maxsig 10",
+                                  numberOfMpi=5,
+                                  numberOfThreads=2)
+            prot2D.inputParticles.set(protExtract)
+            prot2D.inputParticles.setExtended('outputParticles')
+            _saveProtocol(prot2D, movies=False)
+
+            from pyworkflow.em import ProtMonitor2dStreamer
+
+            protStreamer = _newProtocol(ProtMonitor2dStreamer,
+                                        objLabel='scipion - 2d streamer',
+                                        batchSize=20000)
+
+            protStreamer.inputParticles.set(protExtract)
+            protStreamer.inputParticles.setExtended('outputParticles')
+            protStreamer.input2dProtocol.set(prot2D)
+            _saveProtocol(protStreamer, movies=False)
 
         os.system('%s project %s &' % (pw.getScipionScript(), projName))
 
