@@ -36,7 +36,10 @@ if __name__ == "__main__":
     for u in users:
         group = u.getGroup()
         groupParts = group.split()
-        groupName = groupParts[0].lower()
+        try:
+            groupName = groupParts[0].lower()
+        except Exception:
+            print "ERROR: Wrong group name: %s, user: %s" % (group, u.getName())
 
         if u.getGroup() not in USER_GROUPS:
             print "ERROR: Wrong group name"
