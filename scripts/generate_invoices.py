@@ -418,7 +418,7 @@ if __name__ == "__main__":
 
         if not stats:
             for name, statDict in allDict.iteritems():
-                #generateInvoice(statDict, name, allStats[name])
+                generateInvoice(statDict, name, allStats[name])
                 generateInvoiceCsv(statDict, name, allStats[name])
         else:
             # ======= Total distribution of projects ==================

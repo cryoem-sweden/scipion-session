@@ -143,7 +143,7 @@ class Data():
                                 self.cemCode)
             fields = self._orderJson['fields']
             s.pi = Person(name=fields['project_pi'],
-                          email=fields['fields']['pi_email'])
+                          email=fields['pi_email'])
             address = fields['project_invoice_addess']
             reference = fields['invoice_reference']
             s.invoice.set({'address': address, 'reference': reference})
