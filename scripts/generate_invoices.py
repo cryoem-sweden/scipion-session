@@ -55,6 +55,7 @@ TITAN = 'Titan Krios'
 TALOS = 'Talos Arctica'
 
 MICROSCOPES = [TITAN, TALOS]
+#MICROSCOPES = [TALOS]
 
 
 def parseDate(dateStr):
@@ -306,6 +307,9 @@ def getSessionsFromReservations(data):
     for r in reservations:
         if not r.isNationalFacility() and r.resource in MICROSCOPES:
             u = data.findUserFromReservation(r)
+            if u is None:
+                print("User is None for reservation: ", r)
+                continue
             s = data.createSessionFromUser(u)
             data.setupInternalSession(s, u)
             s.isNational.set(False)
@@ -372,40 +376,25 @@ if __name__ == "__main__":
         # f.close()
         # sys.exit(1)
 
-        # Reading annotations of Non-FAC bookings
-        annotations = {}
-        # fn = getDataFile('fac-session-annotated.csv')
-        # f = codecs.open(fn, "r", "utf-8")
-        # for line in f:
-        #     if line.strip():
-        #         parts = line.strip().split(',')
-        #         annotations[parts[0]] = parts[-1]
-
-        extraCount = {}
+        totalCount = {}
         MAINTENANCE = 'MAINTENANCE'
         DOWNTIME = 'DOWNTIME'
-        for group in [FAC, DBB, SLL, DOWNTIME, MAINTENANCE]:
-            extraCount[group] = 0
+        for group in [DOWNTIME, MAINTENANCE]:
+            allStats[group] = {'days': 0, 'count': 0}
 
-        # for s in sessions:
-        #     sessionCode = s.sessionCode.get()
-        #     title = s.reservation.title.get().lower()
-        #     if sessionCode.startswith('fac'):
-        #         ref = s.reservation.reference.get()
-        #         if ref in annotations:
-        #             a = annotations[ref].lower()
-        #             if 'sll' in a:
-        #                 extraCount[SLL] += 1
-        #             elif 'dbb' in a:
-        #                 extraCount[DBB] += 1
-        #             elif ('fei' in a or 'cryo cycle' in a or 'maintenance' in title or
-        #                   'cryo-cycle' in title or 'cryo cycle' in title):
-        #                 extraCount[MAINTENANCE] += 1
-        #             elif ('downtime' in a or 'downtime' in title or 'down' in title):
-        #                 extraCount[DOWNTIME] += 1
-        #             else:
-        #                 extraCount[FAC] += 1 # just to decrement later and keep the same value
-        #             extraCount[FAC] -= 1
+        for s in sessions:
+            sessionCode = s.sessionCode.get()
+            r = s.reservation
+            title = r.title.get().lower()
+
+            if r.resource in MICROSCOPES and sessionCode.startswith('fac'):
+                if ('downtime' in title or 'down' in title):
+                    allStats[DOWNTIME]['days'] += r.getTotalDays()
+                    allStats[DOWNTIME]['count'] += 1
+                if ('maintenance' in title or 'cryo-cycle' in title or 'cryo cycle' in title):
+                    allStats[MAINTENANCE]['days'] += r.getTotalDays()
+                    allStats[MAINTENANCE]['count'] += 1
+
 
         # Generate invoices for dbb projects
         allDict[DBB], allStats[DBB] = getInfoFromInternal(reservations, sessions, group='dbb')
@@ -425,22 +414,14 @@ if __name__ == "__main__":
             total = 0
             for name, statDict in allStats.iteritems():
                 n = statDict['days']
-                # if name == NATIONAL:
-                #     print "Number of National Projects: ", len(statDict)
-                #     n = 0
-                #     for info in statDict.values():
-                #         n += info['days']
-                # else:
-                #     n = len(statDict)
-                if name in extraCount:
-                    n += extraCount[name]
-                print "%s:\t%s:\tdays: %s" % (name, len(allDict[name]), n)
+                if 'count' in statDict:
+                    count = statDict['count']
+                else:
+                    count = len(allDict[name])
+
+                print "%s:\t%s:\tdays: %s" % (name, count, n)
                 total += n
 
-            for name in [DOWNTIME, MAINTENANCE]:
-                n = extraCount[name]
-                print "%s:\t%s" % (name, n)
-                total += n
             print "Total:\t%s" % total
 
 

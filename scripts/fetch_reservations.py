@@ -40,7 +40,8 @@ if __name__ == "__main__":
 
     rPath = getDataFile(BOOKED_RESERVATIONS)
     with open(rPath, 'w') as rFile:
-        json.dump(rJson, rFile)
+        print("Writing reservations to: ", rPath)
+        json.dump(rJson, rFile, indent=2)
     reservations = loadReservationsFromJson(rJson)
     print "Reservations: ", len(reservations)
 
