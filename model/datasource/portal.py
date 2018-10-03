@@ -7,8 +7,7 @@ import json
 import requests
 
 
-
-class PortalManager():
+class PortalManager:
     """ Helper class to interact with the portal system.
     """
     def __init__(self, apiJsonFile):
@@ -45,3 +44,4 @@ class PortalManager():
     def fetchAccountsJson(self):
         """ Retrieve the users list from the portal system. """
         return self._fetchJsonFromUrlSuffix('accounts')
+

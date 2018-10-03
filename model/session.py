@@ -18,18 +18,18 @@ class Person(DataObject):
 class Session(DataObject):
     def __init__(self, **kwargs):
         DataObject.__init__(self, **kwargs)
-        self.userId = Integer() # From the booking system
+        self.userId = Integer()  # From the booking system
         self.sessionCode = UString()  # if non-empty, it is a national project
-        self.isNational = Boolean() # True is it is a national project
+        self.isNational = Boolean()  # True is it is a national project
         self.user = Person()
         self.pi = Person()
         self.visitor = Person()
-        self.microscope = String() # microscope alias
+        self.microscope = String()  # microscope alias
         self.microscopeSettings = JsonDict()  # store a json dict
         self.invoice = JsonDict()  # json dict with 'reference' and 'address'
-        self.dataFolder = UString() # where data is being stored
-        self.scipionProjectName = UString() # scipion project folder
-        self.endDate = UString() # store end date of the session
+        self.dataFolder = UString()  # where data is being stored
+        self.scipionProjectName = UString()  # scipion project folder
+        self.endDate = UString()  # store end date of the session
 
 
 class SessionManager():
