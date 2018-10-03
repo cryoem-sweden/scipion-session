@@ -4,6 +4,7 @@ This module contains classes and utility functions to deal with users
 that can book the microscope and can start a session.
 """
 
+import os
 import re
 import datetime as dt
 import json
@@ -93,7 +94,8 @@ class Reservation(DataObject):
         return self.getCemCode() is not None
 
 
-def loadReservations(userJsonFn, reservationsJsonFn, fromDate, toDate):
+def loadReservations(userJsonFn, reservationsJsonFn, fromDate, toDate,
+                     fetchData=True):
     """ Load reservation list either from the booking system or from a
     local json file with cached data.
     Params:
@@ -102,25 +104,27 @@ def loadReservations(userJsonFn, reservationsJsonFn, fromDate, toDate):
         not be load from the booking system.
         fromDate-toDate: date range to retrieve reservations
     """
-    try:
-        bMan = BookingManager()
-        print "Loading reservations from booking system..."
+    if fetchData:
+        try:
+            bMan = BookingManager()
+            print "Loading reservations from booking system..."
 
-        t = pwutis.Timer()
-        t.tic()
-        reservationsJson = bMan.fetchReservationsJson(userJsonFn,
-                                                      fromDate, toDate)
-        if reservationsJson is None:
-            raise Exception("Could not fetch data from the booking system.")
-        t.toc()
-        with open(reservationsJsonFn, 'w') as reservationsFile:
-            json.dump(reservationsJson, reservationsFile)
-    except Exception, ex:
-        print "Error: ", ex
-        print "Trying to load reservations from file:", reservationsJsonFn
-        jsonFile = open(reservationsJsonFn)
-        reservationsJson = json.load(jsonFile)
-        jsonFile.close()
+            t = pwutis.Timer()
+            t.tic()
+            reservationsJson = bMan.fetchReservationsJson(userJsonFn,
+                                                          fromDate, toDate)
+            if reservationsJson is None:
+                raise Exception("Could not fetch data from the booking system.")
+            t.toc()
+            with open(reservationsJsonFn, 'w') as reservationsFile:
+                json.dump(reservationsJson, reservationsFile)
+        except Exception as ex:
+            print("Error: ", ex)
+            print("Trying to load reservations from file:", reservationsJsonFn)
+
+    jsonFile = open(reservationsJsonFn)
+    reservationsJson = json.load(jsonFile)
+    jsonFile.close()
 
     return loadReservationsFromJson(reservationsJson)
 

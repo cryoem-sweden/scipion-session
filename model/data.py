@@ -56,14 +56,16 @@ class Data():
         # in case of a failure, try to read from cached-file
         reservationsFn = self.getDataFile(BOOKED_RESERVATIONS)
         userJsonFn = self.getDataFile(BOOKED_LOGIN_USER)
+        useLocal = int(os.environ.get('SESSION_WIZARD_LOCAL', 0))
 
         try:
             self._reservations = loadReservations(userJsonFn, reservationsFn,
-                                                  fromDate, toDate)
-        except Exception, ex:
+                                                  fromDate, toDate,
+                                                  fetchData=not useLocal)
+        except Exception as ex:
             self._reservations = []  # work even without reservations
 
-        print "Loaded reservations: ", len(self._reservations)
+        print("Loaded reservations: ", len(self._reservations))
 
         ordersFn = self.getDataFile(PORTAL_ORDERS)
         self._orders = loadOrders(ordersFn)
@@ -174,6 +176,9 @@ class Data():
 
     def getDataFile(self, filename):
         return os.path.join(self.dataFolder, filename)
+
+    def getResourceFile(self, filename):
+        return os.path.join(self.dataFolder, 'resources', filename)
 
     def getReservations(self):
         return self._reservations
