@@ -43,6 +43,8 @@ from pyworkflow.gui import Message, Icon
 from pyworkflow.config import ProjectSettings
 import pyworkflow.em as em
 
+from chooser import OptionChooser
+
 from config import *
 
 
@@ -51,7 +53,7 @@ class BoxWizardWindow(ProjectBaseWindow):
 
     def __init__(self, **kwargs):
         try:
-            title = '%s (%s on %s)' % (Message.LABEL_PROJECTS,
+            title = '%s (%s on %s)' % ('Session Wizard',
                                        pwutils.getLocalUserName(),
                                        pwutils.getLocalHostName())
         except Exception:
@@ -63,7 +65,7 @@ class BoxWizardWindow(ProjectBaseWindow):
         self.data = kwargs.get('data')
         self.microscope = self.data.microscope
 
-        ProjectBaseWindow.__init__(self, title, minsize=(400, 550), **kwargs)
+        ProjectBaseWindow.__init__(self, title, minsize=(800, 700), **kwargs)
         self.viewFuncs = {VIEW_WIZARD: BoxWizardView}
         self.manager = Manager()
         self.switchView(VIEW_WIZARD)
@@ -84,8 +86,7 @@ class BoxWizardWindow(ProjectBaseWindow):
         header.columnconfigure(0, weight=1)
         header.columnconfigure(1, weight=1)
 
-        logoPath = self.data.getDataFile(os.path.join('resources',
-                                                      'scilifelab-logo.png'))
+        logoPath = self.data.getResourceFile('scilifelab-logo.png')
         logoImg = self.getImage(os.path.abspath(logoPath), maxheight=50)
 
         # SciLifeLab logo in the header
@@ -129,10 +130,14 @@ class BoxWizardView(tk.Frame):
         self.projDateFont = tkFont.Font(size=smallSize, family=fontName)
         self.projDelFont = tkFont.Font(size=smallSize, family=fontName,
                                        weight='bold')
+
+        bigfont = tkFont.Font(family="Helvetica", size=12)
+        #self.option_add("*TCombobox*Listbox*Font", bigfont)
+        self.option_add("*Font", bigfont)
         self.manager = Manager()
 
         # Header section
-        headerFrame = tk.Frame(self, bg='white')
+        headerFrame = tk.Frame(self)
         headerFrame.grid(row=0, column=0, sticky='new')
         headerText = "Create New Session"
 
@@ -140,7 +145,7 @@ class BoxWizardView(tk.Frame):
 
         label = tk.Label(headerFrame, text=headerText,
                          font=self.bigFontBold,
-                         borderwidth=0, anchor='nw', bg='white',
+                         borderwidth=0, anchor='nw', #bg='white',
                          fg=pwgui.Color.DARK_GREY_COLOR)
         label.grid(row=0, column=0, sticky='nw', padx=(20, 5), pady=10)
 
@@ -193,6 +198,94 @@ class BoxWizardView(tk.Frame):
             widget.grid_forget()
 
     def _fillContent(self, content):
+        frame = tk.Frame(content, bg='white')
+        frame.grid(row=0, column=0, sticky='news', padx=10, pady=15)
+        frame.columnconfigure(0, minsize=200)
+        self._lastRow = 0
+
+
+        def __addLabeledWidget(text, widget=None, pady=5, bold=False):
+            boldStr = 'bold' if bold else ''
+            label = tk.Label(frame, text=text,
+                             font="helvetica 12 %s" % boldStr, bg='white')
+            print("pady", pady)
+            label.grid(row=self._lastRow, column=0, sticky='ne', pady=pady)
+
+            if widget is not None:
+                widget.grid(row=self._lastRow, column=1, sticky='nw', pady=pady, padx=5)
+
+            self._lastRow += 1
+
+            return label
+
+        def __createCombobox(options, readOnly=True):
+            var = tk.StringVar()
+            s = ttk.Style()
+            s.configure('my.Combobox', font=('Helvetica', 12))
+            state = 'readonly' if readOnly else 'edit'
+            combo = ttk.Combobox(frame, textvariable=var, state=state,
+                                 width=38)
+            combo['values'] = options
+            # traceCallback = kwargs.get('traceCallback', None)
+            #
+            # if traceCallback:
+            #     combo.bind('<<ComboboxSelected>>', traceCallback)
+            return combo
+
+        def _showCameraOptions(chooser):
+            """ Show the correct camera options depending on the
+            selected microscope. """
+            i = chooser.getSelectedIndex()
+            j = 1 - i  # old index, this works only for two values
+            print("changed mic selection...", i, j)
+            self._camChoosers[j].grid_forget()
+            self._camChoosers[i].grid(row=self._camRow, column=1, sticky='nw', pady=5, padx=5)
+
+        f1 = OptionChooser(frame, bg='white', optionWidth=200)
+        f1.onSelectionChanged(_showCameraOptions)
+        f1.addOption('Krios 1', self.data.getResourceFile("titan_small.gif"))
+        f1.addOption('Talos', self.data.getResourceFile("talos_small.gif"))
+        __addLabeledWidget("Microscope", f1, bold=True)
+
+        f2 = OptionChooser(frame, bg='white', optionWidth=200)
+        #f2.onSelectionChanged(onSelection)
+        f2.addOption('K2')
+        f2.addOption('Falcon 3')
+        self._camRow = self._lastRow
+        __addLabeledWidget("Camera", f2)
+
+        f2b = OptionChooser(frame, bg='white', optionWidth=200)
+        #f2.onSelectionChanged(onSelection)
+        f2b.addOption('Falcon 3')
+        f2b.selectIndex(0)
+
+        self._camChoosers = [f2, f2b]
+
+        f3 = OptionChooser(frame, bg='white',
+                           optionWidth=200, optionFont='helvetica 12 bold')
+        # f3.onSelectionChanged(onSelection)
+        f3.addOption('National')
+        f3.addOption('Internal')
+        __addLabeledWidget("Project", f3, pady=(20, 0), bold=True)
+        __addLabeledWidget("Session ID")
+        __addLabeledWidget("PI", __createCombobox(['Alexey Amunts', 'Erik Lindalh', 'David Drew']))
+        __addLabeledWidget("User", __createCombobox(['Pascal xxx', 'Jens yyyy', 'Ohter ...'],
+                                                    readOnly=False))
+        __addLabeledWidget("Operator", __createCombobox(['Marta', 'Julian']))
+
+
+        f4 = OptionChooser(frame, bg='white', optionWidth=200)
+        #f1.onSelectionChanged(onSelection)
+        f4.addOption('Scipion', self.data.getResourceFile("scipion_logo.gif"))
+        f4.addOption('None', self.data.getResourceFile("none.gif"))
+        __addLabeledWidget("Pre-processing", f4, pady=(20, 0), bold=True)
+
+        # Select Krios, TESTING
+        f1.selectIndex(0)
+        # Select Scipion as default for pre-processing
+        f4.selectIndex(0)
+
+    def _fillContentOLD(self, content):
         tab = ttk.Notebook(content)  # , style='W.TNotebook')
         tab.grid(row=0, column=0, sticky='news', padx=10, pady=10)
 
