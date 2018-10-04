@@ -5,14 +5,15 @@ import json
 import re
 
 from config import *
+from base import Person
 from order import loadOrders
 from reservation import loadReservations
-from session import SessionManager, Session, Person
+from session import SessionManager, Session
 from user import loadUsersFromJsonFile
 from datasource.portal import PortalManager
 
 
-class Data():
+class Data:
     def __init__(self, **kwargs):
         self.dataFolder = kwargs['dataFolder']
         self.microscope = kwargs.get('microscope', None)

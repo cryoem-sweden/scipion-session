@@ -67,6 +67,11 @@ class DataObject(OrderedObject):
             setattr(self, key, kwargs.get(key, None))
 
 
+class Person(DataObject):
+    """ Simple class to hold name and email values. """
+    ATTR_STR = ['email', 'name']
+
+
 def parseCsv(csvFilename, skipFirst=True):
 
     with open(csvFilename) as dataFile:
