@@ -4,15 +4,11 @@ import os
 from pyworkflow.object import *
 import pyworkflow.utils as pwutils
 
-from base import DataObject, UString, JsonDict
+from base import DataObject, UString, JsonDict, Person
 from user import User
 from order import Order
 from reservation import Reservation
 
-
-class Person(DataObject):
-    """ Simple class to hold name and email values. """
-    ATTR_STR = ['email', 'name']
 
 
 class Session(DataObject):
