@@ -14,7 +14,7 @@ from config import *
 import pyworkflow.utils as pwutils
 
 from model.datasource.portal import PortalManager
-from model.order import loadOrdersFromJson
+from model.order import loadAccountsFromJson
 
 
 t = pwutils.Timer()
@@ -29,13 +29,7 @@ pMan = PortalManager(apiJsonFile)
 accountJson = pMan.fetchAccountsJson()
 #print json.dumps(accountJson, indent=2)
 
-piList = []
-noPiList = []
-
-for u in accountJson['items']:
-    isPi = u['pi']
-    if isPi:
-        piList.append(u)
+piList = loadAccountsFromJson(accountJson, university='SU')
 
 for u in piList:
     print("%s %s - %s (%s) %s"

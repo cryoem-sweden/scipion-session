@@ -7,8 +7,8 @@ NOTE: This uses the third-party 'requests' module, which is much nicer than
 the standard 'urllib' module.
 """
 
+import argparse
 import json
-import requests
 from config import *
 
 import pyworkflow.utils as pwutils
@@ -16,6 +16,25 @@ import pyworkflow.utils as pwutils
 from model.datasource.portal import PortalManager
 from model.order import loadOrdersFromJson
 
+parser = argparse.ArgumentParser()
+_addArg = parser.add_argument  # short notation
+
+_addArg("--details", type=str, default='',
+        dest='detailsCem', metavar='CEM',
+        help="Provide the CEM code to print details of this order")
+
+_addArg("--list", action="store_true",
+        help="List current orders")
+
+_addArg("--sort", type=str, default='cem',
+        dest='sort', metavar='SORT',
+        help="Sort criteria. (cem, date)")
+
+_addArg("--filter", type=str, default='',
+        dest='filter', metavar='SORT',
+        help="Filter orders base on some criteria. (bag)")
+
+args = parser.parse_args()
 
 t = pwutils.Timer()
 
@@ -25,83 +44,51 @@ apiJsonFile = 'data/%s' % PORTAL_API
 
 pMan = PortalManager(apiJsonFile)
 
-# Fetch orders from the Portal and write to a json file
-ordersJson = pMan.fetchOrdersJson()
-ordersFile = open('data/%s' % PORTAL_ORDERS, 'w')
-json.dump(ordersJson, ordersFile, indent=2)
-ordersFile.close()
-orders = loadOrdersFromJson(ordersJson)
-print "Orders: ", len(orders)
+if args.list:
+    # Fetch orders from the Portal and write to a json file
+    ordersJson = pMan.fetchOrdersJson()
+    ordersFn = 'data/%s' % PORTAL_ORDERS
+    ordersFile = open(ordersFn, 'w')
+    print "Writing orders JSON to file: %s" % ordersFn
+    json.dump(ordersJson, ordersFile, indent=2)
+    ordersFile.close()
+    orders = loadOrdersFromJson(ordersJson)
 
-orderId = ordersJson[10]['identifier']
-print "Retrieving details for first order: ", orderId
-orderDetailsJson = pMan.fetchOrderDetailsJson(orderId)
-print json.dumps(orderDetailsJson, indent=2)
+    filter = args.filter
+    if filter:
+        if filter == 'bag':
+            filterFunc = lambda o: o.isBag() and o.getStatus() == 'accepted'
+        else:
+            raise Exception("Invalid value for filter: %s" % filter)
+        orders = [o for o in orders if filterFunc(o)]
 
-# Fetch users from the Portal
-accountJson = pMan.fetchAccountsJson()
-#print json.dumps(accountJson, indent=2)
+    sort = args.sort
+    if sort:
+        if sort == 'cem':
+            keyFunc = lambda o: o.getId()
+        elif sort == 'date':
+            keyFunc = lambda o: o.getId()
+        elif sort == 'pi':
+            keyFunc = lambda o: o.getPiEmail()
+        else:
+            raise Exception("Invalid value for sort: %s" % sort)
+        orders = sorted(orders, key=keyFunc)
 
-piList = [u for u in accountJson['items'] if u['pi']]
-
-for u in piList:
-    print("%s %s (%s)"
-          % (u['first_name'],
-             u['last_name'],
-             u['university']
-             )
-          )
-
-print "Total PIs: ", len(piList)
+    for o in orders:
+        print "%s: %s" % (o.getId(), o.getTitle())
+        details = pMan.fetchOrderDetailsJson(o.getId())
+        piList = details['fields']['pi_list']
+        for name, email in piList:
+            print "   ", name, email
 
 
-"""
-  "items": [
-    {
-      "status": "enabled",
-      "first_name": "Annemarie",
-      "last_name": "Perez",
-      "name": "Perez, Annemarie",
-      "links": {
-        "api": {
-          "href": "https://cryoem.scilifelab.se/api/v1/account/a.perezboerema%40scilifelab.se"
-        },
-        "display": {
-          "href": "https://cryoem.scilifelab.se/account/a.perezboerema%40scilifelab.se"
-        }
-      },
-      "gender": "female",
-      "university": "SU",
-      "modified": "2016-08-31T11:20:47.441Z",
-      "orders": {
-        "count": 0,
-        "links": {
-          "api": {
-            "href": "https://cryoem.scilifelab.se/api/v1/account/a.perezboerema%40scilifelab.se/orders"
-          },
-          "display": {
-            "href": "https://cryoem.scilifelab.se/account/a.perezboerema%40scilifelab.se/orders"
-          }
-        }
-      },
-      "invoice_address": {
-        "country": "AF",
-        "city": "",
-        "zip": "",
-        "address": ""
-      },
-      "role": "user",
-      "address": {
-        "country": "SE",
-        "city": "",
-        "zip": "",
-        "address": ""
-      },
-      "invoice_ref": "",
-      "login": "2016-08-31T11:20:47.441Z",
-      "pi": false,
-      "email": "a.perezboerema@scilifelab.se"
-    },
-"""
+    print "Orders: ", len(orders)
+
+elif args.detailsCem:
+    orderId = args.detailsCem
+    print "Retrieving details for first order: ", orderId
+    orderDetailsJson = pMan.fetchOrderDetailsJson(orderId)
+    print json.dumps(orderDetailsJson, indent=2)
+
 
 t.toc()
