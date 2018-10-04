@@ -10,24 +10,39 @@ import requests
 class PortalManager:
     """ Helper class to interact with the portal system.
     """
-    def __init__(self, apiJsonFile):
+    def __init__(self, apiJsonFile, cache=True):
         with open(apiJsonFile) as apiFile:
             apiJson = json.load(apiFile)
             self._headers = apiJson['headers']
             self._baseUrl = apiJson['baseUrl']
 
+            # Create a cached dict with json files for url
+            # to avoid make unnecessary queries in the same session
+            if cache:
+                self._cache = {}
+
     def _getUrl(self, suffix):
         return self._baseUrl + suffix
 
     def _fetchJsonFromUrl(self, url):
-        print "Retrieving url: ", url
+        cache = getattr(self, '_cache', None)
+        cachedJson = cache.get(url, None) if cache is not None else None
+
+        if cachedJson:
+            print("Returning cached JSON for url: %s" % url)
+            return cachedJson
+
+        print("Retrieving url: %s" % url)
         response = requests.get(url, headers=self._headers)
 
         if response.status_code != 200:
             print(response.status_code)
             return None
         else:
-            return response.json()
+            result = response.json()
+            if cache is not None:
+                cache[url] = result
+            return result
 
     def _fetchJsonFromUrlSuffix(self, suffix):
         return self._fetchJsonFromUrl(self._getUrl(suffix))
