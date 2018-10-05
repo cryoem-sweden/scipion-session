@@ -6,7 +6,7 @@ import re
 
 from config import *
 from base import Person
-from order import loadOrders
+from order import loadOrders, loadAccountsFromJson, loadActiveBags
 from reservation import loadReservations
 from session import SessionManager, Session
 from user import loadUsersFromJsonFile
@@ -340,3 +340,10 @@ class Data:
                 reservations.append(r)
 
         return reservations
+
+    def getActiveBags(self):
+        return loadActiveBags(self.pMan)
+
+    def getAccountsFromPortal(self):
+        return loadAccountsFromJson(self.pMan.fetchAccountsJson(),
+                                    isPi=False, university=None)

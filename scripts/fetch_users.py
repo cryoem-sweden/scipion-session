@@ -9,7 +9,6 @@ from model.user import loadUsersFromJson
 from config import *
 
 
-
 if __name__ == "__main__":
     # Assume the data folder is in the same place as this script
     dataFolder = os.path.join(os.path.dirname(__file__), '../data')

@@ -63,6 +63,10 @@ def loadActiveBags(pMan):
     """ Return the list of orders that are active bags
     and also set the list of PIs.
     """
+    # FIXME: Now we are assuming only the 'BAG application form'
+    # are active, it will be good to have another way to distinguish
+    # active one, MAYBE CLOSE THE FINISHED applications?
+
     ordersJson = pMan.fetchOrdersJson()
     filterFunc = lambda o: o.isBag() and o.getStatus() == 'accepted'
     orders = list(filter(filterFunc, loadOrdersFromJson(ordersJson)))

@@ -27,6 +27,7 @@
 import os
 import sys
 import re
+from collections import OrderedDict
 import datetime as dt
 import codecs
 import Tkinter as tk
@@ -203,12 +204,10 @@ class BoxWizardView(tk.Frame):
         frame.columnconfigure(0, minsize=200)
         self._lastRow = 0
 
-
         def __addLabeledWidget(text, widget=None, pady=5, bold=False):
             boldStr = 'bold' if bold else ''
             label = tk.Label(frame, text=text,
                              font="helvetica 12 %s" % boldStr, bg='white')
-            print("pady", pady)
             label.grid(row=self._lastRow, column=0, sticky='ne', pady=pady)
 
             if widget is not None:
@@ -218,18 +217,18 @@ class BoxWizardView(tk.Frame):
 
             return label
 
-        def __createCombobox(options, readOnly=True):
+        def __createCombobox(options, readOnly=True, callback=None, width=38):
             var = tk.StringVar()
             s = ttk.Style()
-            s.configure('my.Combobox', font=('Helvetica', 12))
             state = 'readonly' if readOnly else 'edit'
             combo = ttk.Combobox(frame, textvariable=var, state=state,
-                                 width=38)
+                                 width=width)
             combo['values'] = options
-            # traceCallback = kwargs.get('traceCallback', None)
-            #
-            # if traceCallback:
-            #     combo.bind('<<ComboboxSelected>>', traceCallback)
+            combo.var = var
+
+            if callback:
+                combo.bind('<<ComboboxSelected>>', callback)
+
             return combo
 
         def _showCameraOptions(chooser):
@@ -239,13 +238,72 @@ class BoxWizardView(tk.Frame):
             j = 1 - i  # old index, this works only for two values
             print("changed mic selection...", i, j)
             self._camChoosers[j].grid_forget()
-            self._camChoosers[i].grid(row=self._camRow, column=1, sticky='nw', pady=5, padx=5)
+            self._camChoosers[i].grid(row=self._camRow, column=1, sticky='nw',
+                                      pady=5, padx=5)
+
+        def _configCombo(combo, selection='', values=[]):
+            combo.set(selection)
+            combo['values'] = values
+
+        def _getAccountList(filterFunc):
+            """ Return a list of strings name -- email
+            for all the accounts that meets the filterFunc criteria.
+            """
+            return ['%s %s -- %s' %
+                    (a['first_name'], a['last_name'], a['email'])
+                    for a in self._accounts if filterFunc(a)]
+
+        def _getEmailFromCombo(combo):
+            """ Return the account email assuming the format name -- email. """
+            return combo.var.get().split('--')[1].strip()
+
+        def _onChangeProjectType(chooser):
+            piConfig = {}
+            cemConfig = {'selection': 'None'}
+
+            i = chooser.getSelectedIndex()
+            # 0 is National, 1 is Internal, 2 Facility
+            if i == 0:
+                piConfig = {'selection': 'Select CEM code first'}
+                cemConfig = {'selection': 'Select CEM',
+                             'values': self._bagsDict.keys()}
+            elif i == 1:
+                # List of internal PIs of SU
+                piFilter = lambda a: a['pi'] and a['university'] == 'SU'
+                piConfig = {'selection': 'Select PI',
+                            'values': _getAccountList(piFilter)}
+            elif i == 2:
+                piConfig['selection'] = 'None'
+            else:
+                raise Exception('Invalid option for project type %s' % i)
+
+            _configCombo(self._piCombo, **piConfig)
+            _configCombo(self._cemCombo, **cemConfig)
+            _configCombo(self._userCombo)
+
+        def _onSelectCEM(*args):
+            #for name, email in piList:
+            print "value: ", self._cemCombo.var.get()
+            bag = self._bagsDict.get(self._cemCombo.var.get(), None)
+            _configCombo(self._piCombo,
+                         values=['%s -- %s' % tuple(pi) for pi in bag.piList])
+
+        def _onSelectPI(*args):
+            piEmail = _getEmailFromCombo(self._piCombo)
+            print "value: ", piEmail
+            userFilter = lambda a: a['invoice_ref'] == piEmail
+            # bag = self._bagsDict.get(self._cemCombo.var.get(), None)
+            _configCombo(self._userCombo,
+                         values=_getAccountList(userFilter))
+
+        EXTRA_PAD = 30
 
         f1 = OptionChooser(frame, bg='white', optionWidth=200)
         f1.onSelectionChanged(_showCameraOptions)
         f1.addOption('Krios 1', self.data.getResourceFile("titan_small.gif"))
         f1.addOption('Talos', self.data.getResourceFile("talos_small.gif"))
         __addLabeledWidget("Microscope", f1, bold=True)
+        self._micOrder = {TITAN: 0, TALOS: 1}
 
         f2 = OptionChooser(frame, bg='white', optionWidth=200)
         #f2.onSelectionChanged(onSelection)
@@ -261,27 +319,44 @@ class BoxWizardView(tk.Frame):
 
         self._camChoosers = [f2, f2b]
 
+        # --------- Load some data ---------------
+        self._bagsDict = OrderedDict([(b.getId().upper(), b)
+                                      for b in self.data.getActiveBags()])
+
+        self._accounts = self.data.getAccountsFromPortal()
+
+        # --------- Project block ----------------
         f3 = OptionChooser(frame, bg='white',
-                           optionWidth=200, optionFont='helvetica 12 bold')
-        # f3.onSelectionChanged(onSelection)
+                           optionWidth=134)
+        f3.onSelectionChanged(_onChangeProjectType)
         f3.addOption('National')
         f3.addOption('Internal')
-        __addLabeledWidget("Project", f3, pady=(20, 0), bold=True)
-        __addLabeledWidget("Session ID")
-        __addLabeledWidget("PI", __createCombobox(['Alexey Amunts', 'Erik Lindalh', 'David Drew']))
-        __addLabeledWidget("User", __createCombobox(['Pascal xxx', 'Jens yyyy', 'Ohter ...'],
-                                                    readOnly=False))
+        f3.addOption('Facility')
+        __addLabeledWidget("Project", f3, pady=(EXTRA_PAD, 0), bold=True)
+
+        self._cemCombo = __createCombobox([], callback=_onSelectCEM, width=11)
+        __addLabeledWidget("CEM code", self._cemCombo)
+
+        self._piCombo = __createCombobox([], callback=_onSelectPI)
+        __addLabeledWidget("PI", self._piCombo)
+
+        self._userCombo = __createCombobox([], readOnly=False)
+        __addLabeledWidget("User", self._userCombo)
+
         __addLabeledWidget("Operator", __createCombobox(['Marta', 'Julian']))
 
-
         f4 = OptionChooser(frame, bg='white', optionWidth=200)
-        #f1.onSelectionChanged(onSelection)
         f4.addOption('Scipion', self.data.getResourceFile("scipion_logo.gif"))
         f4.addOption('None', self.data.getResourceFile("none.gif"))
-        __addLabeledWidget("Pre-processing", f4, pady=(20, 0), bold=True)
+
+        # --------- Preprocessing block ----------------
+        __addLabeledWidget("Session ID", f4, pady=(EXTRA_PAD, 0), bold=True)
+
+        # --------- Preprocessing block ----------------
+        __addLabeledWidget("Pre-processing", f4, pady=(EXTRA_PAD, 0), bold=True)
 
         # Select Krios, TESTING
-        f1.selectIndex(0)
+        f1.selectIndex(self._micOrder[self.microscope])
         # Select Scipion as default for pre-processing
         f4.selectIndex(0)
 
@@ -496,7 +571,6 @@ class BoxWizardView(tk.Frame):
             errors.insert(0, "*Errors*:")
             self.windows.showError("\n  - ".join(errors))
         else:
-
             self.data.storeSession(projPath, projName)
             self._createDataFolder(projPath, scipionProjPath)
             self._createScipionProject(projName, projPath, projPath)
