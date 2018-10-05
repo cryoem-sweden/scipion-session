@@ -25,72 +25,29 @@ apiJsonFile = 'data/%s' % PORTAL_API
 
 pMan = PortalManager(apiJsonFile)
 
+
 # Fetch users from the Portal
 accountJson = pMan.fetchAccountsJson()
-#print json.dumps(accountJson, indent=2)
 
-piList = loadAccountsFromJson(accountJson, university='SU')
+# Fetch orders from the Portal and write to a json file
+accountsFn = 'data/%s' % PORTAL_ACCOUNTS
+with open(accountsFn, 'w') as ordersFile:
+    print "Writing orders JSON to file: %s" % accountsFn
+    json.dump(accountJson, ordersFile, indent=2)
+
+piList = loadAccountsFromJson(accountJson, isPi=False)#, university='SU')
+
+headers = ["Name", "Email", "Univ.", "PI", "Invoice REF"]
+row_format = u"{:<30}{:<35}{:<5}{:<5}{:<20}"
+print row_format.format(*headers)
 
 for u in piList:
-    print("%s %s - %s (%s) %s"
-          % (u['first_name'],
-             u['last_name'],
-             u['email'],
-             u['university'],
-             u['pi']
-             )
-          )
+    row = ("%s %s" % (u['first_name'], u['last_name']),
+           u['email'], u['university'], u['pi'], u['invoice_ref']
+           )
+    print(row_format.format(*row))
 
-print "Total PIs: ", len(piList)
+print "Accounts: ", len(piList)
 
-
-"""
-  "items": [
-    {
-      "status": "enabled",
-      "first_name": "Annemarie",
-      "last_name": "Perez",
-      "name": "Perez, Annemarie",
-      "links": {
-        "api": {
-          "href": "https://cryoem.scilifelab.se/api/v1/account/a.perezboerema%40scilifelab.se"
-        },
-        "display": {
-          "href": "https://cryoem.scilifelab.se/account/a.perezboerema%40scilifelab.se"
-        }
-      },
-      "gender": "female",
-      "university": "SU",
-      "modified": "2016-08-31T11:20:47.441Z",
-      "orders": {
-        "count": 0,
-        "links": {
-          "api": {
-            "href": "https://cryoem.scilifelab.se/api/v1/account/a.perezboerema%40scilifelab.se/orders"
-          },
-          "display": {
-            "href": "https://cryoem.scilifelab.se/account/a.perezboerema%40scilifelab.se/orders"
-          }
-        }
-      },
-      "invoice_address": {
-        "country": "AF",
-        "city": "",
-        "zip": "",
-        "address": ""
-      },
-      "role": "user",
-      "address": {
-        "country": "SE",
-        "city": "",
-        "zip": "",
-        "address": ""
-      },
-      "invoice_ref": "",
-      "login": "2016-08-31T11:20:47.441Z",
-      "pi": false,
-      "email": "a.perezboerema@scilifelab.se"
-    },
-"""
 
 t.toc()

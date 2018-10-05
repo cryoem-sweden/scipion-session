@@ -163,6 +163,7 @@ MIC_CAMERAS_SETTINGS = {
 # Some data files under the folder 'data'
 PORTAL_API = 'portal-api.json'
 PORTAL_ORDERS = 'portal-orders.json'
+PORTAL_ACCOUNTS = 'portal-accounts.json'
 
 BOOKED_LOGIN_USER = 'booked-user.json'
 BOOKED_USERS_LIST = 'booked-users-list.json'
