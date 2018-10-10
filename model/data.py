@@ -3,6 +3,12 @@ import os
 import datetime as dt
 import json
 import re
+import sys
+import codecs
+
+import pyworkflow.em as em
+import pyworkflow.utils as pwutils
+from pyworkflow.manager import Manager
 
 from config import *
 from base import Person
@@ -11,6 +17,10 @@ from reservation import loadReservations
 from session import SessionManager, Session
 from user import loadUsersFromJsonFile
 from datasource.portal import PortalManager
+
+PROJ_NATIONAL = 0
+PROJ_INTERNAL = 1
+PROJ_FACILITY = 2
 
 
 class Data:
@@ -86,32 +96,22 @@ class Data:
         self.projectId = None
         self.group = None
         self.cemCode = None
-        self._selectedReservation = None
+        self._reservation = None
 
-        todayReservations = self.findReservationFromDate(self.date,
-                                                         self.microscope)
-        if todayReservations:
-            n = len(todayReservations)
+        reservations = self.findReservationFromDate(self.date, self.microscope)
+        if reservations:
+            n = len(reservations)
             # If there are more than one reservation (probably some overlapping
             # in the booking system), take the first one that starts today
-            r = todayReservations[0]
+            r = reservations[0]
             print "n: ", n
             if n > 1:
-                for tr in todayReservations:
+                for tr in reservations:
                     if tr.startsToday():
                         r = tr
                         break
 
-            self._selectedReservation = r
-            if r.user is not None:
-                self.selectUser(r.user)
-                # For staff users we will try to determine if the project
-                # is internal or national facility
-                if self.user.isStaff:
-                    self.cemCode = r.getCemCode()
-                    # Set the project type to either internal or national facility
-                    projType = PROJECT_TYPES[1 if self.cemCode is None else 0]
-                    self.selectProjectType(projType)
+            self._reservation = r
         else:
             print "No reservation found today for '%s'" % self.microscope
 
@@ -130,50 +130,296 @@ class Data:
 
         return self.pMan.fetchOrderDetailsJson(cemCode)
 
-    def _createSession(self, projPath, scipionProjName):
-        u = self.getSelectedUser()
-        s = self.createSessionFromUser(u)
+    def getNowStr(self):
+        return "%04d%02d%02d" % (self.now.year, self.now.month, self.now.day)
 
-        s.dataFolder.set(projPath)
-        s.scipionProjectName.set(scipionProjName)
-        s.sessionCode.set(self.projectId)
-        s.isNational.set(self.isNational())
-        s.microscope.set(self.microscope)
+    def createSession(self, microscope, camera, projectType,
+                      cem=None, pi=None, user=None, operator=None,
+                      preprocessing=None):
+        # Update now variable
+        self.now = dt.datetime.now()
 
-        if self.isNational():
-            if self._orderJson is None:
-                raise Exception("Could not retrieve order details for %s" %
-                                self.cemCode)
-            fields = self._orderJson['fields']
-            s.pi = Person(name=fields['project_pi'],
-                          email=fields['pi_email'])
-            address = fields['project_invoice_addess']
-            reference = fields['invoice_reference']
-            s.invoice.set({'address': address, 'reference': reference})
-        else:
-            self.setupInternalSession(s, u)
+        if projectType == PROJ_NATIONAL:
+            group = cem
+        elif projectType == PROJ_FACILITY:
+            group = 'fac'
+        else:  # projectType == PROJ_INTERNAL:
+            group = 'sll' if 'scilifelab' in pi.email.get() else 'dbb'
 
-        return s
+        session = Session()
+        session.setId(group, counter=self.sMan.getNextId(group))
+        session.setMicroscopeDict(microscope=microscope, camera=camera)
 
-    def createSessionFromUser(self, user):
-        s = Session()
-        s.userId.set(user.getId())
-        s.user = Person(name=user.getFullName(), email=user.getEmail())
-        return s
+        # Take only the first 3 character for the data folder
+        session.setPath(os.path.join(DEFAULTS[DATA_FOLDER], group[:3], session.getId()))
 
-    def setupInternalSession(self, session, user):
-        lab = user.getLab()
-        if lab in self._labInfo:
-            li = self._labInfo[lab]
-            session.pi = Person(name=li['pi_name'], email=li['pi_email'])
-            session.invoice.set({'address': li['invoice_address'], 'reference': ''})
 
-    def storeSession(self, projPath, scipionProjName):
-        s = self._createSession(projPath, scipionProjName)
-        self.sMan.storeSession(s)
+        if pi:
+            session.pi = pi
+
+        if user:
+            session.user = user
+
+        if operator:
+            session.operator = operator
+
+        session.printAll()
+
+        self._createFolder(session.getPath())
+        self._createSessionReadme(session)
+        if preprocessing == 'Scipion':
+            session.setScipionProjectName('%s_scipion_%s'
+                                          % (session.getId(),
+                                             self.getNowStr()))
+            self._createSessionScipionProject(session)
+        self.storeSession(session)
+
+        return session
+
+    def _createFolder(self, p):
+        if os.path.exists(p):
+            raise Exception("Path '%s' already exists.\n" % p)
+        # Create the project path
+        sys.stdout.write("Creating path '%s' ... " % p)
+        pwutils.makePath(p)
+        sys.stdout.write("DONE\n")
+
+    def _createSessionReadme(self, session):
+        """ Create the main data folder for this session and
+        also the folder for Scipion pre-processing if required.
+        Also create the README file inside the main folder.
+        """
+        # Write the README file
+        readmeFn = session.getPath('README_%s.txt' % self.getNowStr())
+        with codecs.open(readmeFn, "w", "utf-8") as f:
+            #TODO: store some info from the reservation
+            r = self._reservation
+
+            def _writePerson(p, prefix):
+                f.write("%s.name: %s\n" % (prefix, p.name))
+                f.write("%s.email: %s\n" % (prefix, p.email))
+
+            _writePerson(session.pi, 'pi')
+            _writePerson(session.user, 'user')
+            _writePerson(session.operator, 'operator')
+            # Write title
+            desc = "Not found" if r is None else r.title
+            f.write("description: %s\n" % desc)
+
+            f.write("date: %s\n" % self.getNowStr())
+
+    def storeSession(self, session):
+        self.sMan.storeSession(session)
 
     def getSessions(self):
         return self.sMan.getSessions()
+
+    def _getConfValue(self, key, default=''):
+        return DEFAULTS.get(key, default)
+
+    def _createSessionScipionProject(self, session):
+        manager = Manager()
+        projectPath = session.getScipionProjectPath()
+        self._createFolder(projectPath)
+        project = manager.createProject(session.getScipionProjectName(),
+                                        location=projectPath)
+        self.lastProt = None
+
+        smtpServer = self._getConfValue(SMTP_SERVER, '')
+        smtpFrom = self._getConfValue(SMTP_FROM, '')
+        smtpTo = self._getConfValue(SMTP_TO, '')
+        doMail = False
+        doPublish = False
+
+        microscope = session.getMicroscope()
+        camera = session.getCamera()
+
+        def getMicSetting(key):
+            return MICROSCOPES_SETTINGS[microscope][key]
+
+        cs = getMicSetting(CS)
+        voltage = getMicSetting(VOLTAGE)
+        # For now lets use only one GPU, the first in the list
+        gpuId = str(getMicSetting(GPU)[0])
+
+        isK2 = camera == K2
+        pattern = CAMERA_SETTINGS[camera][PATTERN]
+
+        # if camera == FALCON3:
+        #     basePath = MIC_CAMERAS_SETTINGS[microscope][camera][MOVIES_FOLDER]
+        #     filesPath = os.path.join(basePath, projId) + "_epu"
+        # else:
+        filesPath = session.getPath()
+
+        protImport = project.newProtocol(em.ProtImportMovies,
+                                         objLabel='Import movies',
+                                         filesPath=filesPath,
+                                         filesPattern=pattern,
+                                         voltage=voltage,
+                                         sphericalAberration=cs,
+                                         samplingRate=None,
+                                         magnification=None,
+                                         dataStreaming=True,
+                                         timeout=72000,
+                                         inputIndividualFrames=False,
+                                         stackFrames=False,
+                                         writeMoviesInProject=True
+                                         )
+
+        # Should I publish html report?
+        if doPublish == 1:
+            publish = self._getConfValue('HTML_PUBLISH')
+            #print("\n\nReport available at URL: %s/%s\n\n"
+            #      %('http://scipion.cnb.csic.es/scipionbox',projName))
+        else:
+            publish = ''
+
+        protMonitor = project.newProtocol(em.ProtMonitorSummary,
+                                          objLabel='Summary Monitor',
+                                          doMail=doMail,
+                                          emailFrom=smtpFrom,
+                                          emailTo=smtpTo,
+                                          smtp=smtpServer,
+                                          publishCmd=publish)
+
+        def _saveProtocol(prot, movies=True, monitor=True):
+            if movies:
+                prot.inputMovies.set(self.lastProt)
+                prot.inputMovies.setExtended('outputMovies')
+            project.saveProtocol(prot)
+            self.lastProt = prot
+            if monitor:
+                protMonitor.inputProtocols.append(prot)
+
+        def _newProtocol(*args, **kwargs):
+            return project.newProtocol(*args, **kwargs)
+
+        _saveProtocol(protImport, movies=False)
+
+        useMC2 = True
+        useMC = False
+        useOF = False
+        useSM = False
+        useCTF = True
+        useGCTF = True
+
+        kwargs = {}
+
+        protMC = None
+        if useMC:
+            # Create motioncorr
+            from pyworkflow.em.packages.motioncorr import ProtMotionCorr
+            protMC = _newProtocol(ProtMotionCorr,
+                                 objLabel='Motioncorr',
+                                 useMotioncor2=useMC2,
+                                 doComputeMicThumbnail=True,
+                                 computeAllFramesAvg=True,
+                                 gpuList=gpuId,
+                                 extraProtocolParams='--use_worker_thread',
+                                 **kwargs)
+            _saveProtocol(protMC)
+
+        if useOF:
+            # Create Optical Flow protocol
+            from pyworkflow.em.packages.xmipp3 import XmippProtOFAlignment
+
+            protOF = _newProtocol(XmippProtOFAlignment,
+                                 objLabel='Optical Flow',
+                                 doSaveMovie=useSM,
+                                 **kwargs)
+            _saveProtocol(protOF)
+
+        if useSM:
+            from pyworkflow.em.packages.grigoriefflab import ProtSummovie
+            protSM = _newProtocol(ProtSummovie,
+                                 objLabel='Summovie',
+                                 cleanInputMovies=useOF,
+                                 numberOfThreads=1,
+                                 **kwargs)
+            _saveProtocol(protSM)
+
+        lastBeforeCTF = self.lastProt
+        lowRes, highRes = 0.03, 0.42
+
+        protCTF = None
+        if useCTF:
+            from pyworkflow.em.packages.grigoriefflab import ProtCTFFind
+            protCTF = _newProtocol(ProtCTFFind,
+                                  objLabel='Ctffind',
+                                  numberOfThreads=1,
+                                  lowRes=lowRes, highRes=highRes)
+            protCTF.inputMicrographs.set(lastBeforeCTF)
+            protCTF.inputMicrographs.setExtended('outputMicrographs')
+            _saveProtocol(protCTF, movies=False)
+
+        if useGCTF:
+            from pyworkflow.em.packages.gctf import ProtGctf
+            protGCTF = _newProtocol(ProtGctf,
+                                    objLabel='Gctf',
+                                    lowRes=lowRes, highRes=highRes,
+                                    windowSize=1024,
+                                    maxDefocus=9.0,
+                                    doEPA=False,
+                                    doHighRes=True,
+                                    gpuList=gpuId)
+            protGCTF.inputMicrographs.set(lastBeforeCTF)
+            protGCTF.inputMicrographs.setExtended('outputMicrographs')
+            _saveProtocol(protGCTF, movies=False)
+            protCTF = protGCTF
+
+        project.saveProtocol(protMonitor)
+
+        if protCTF is not None and protMC is not None:
+            from pyworkflow.em.packages.xmipp3 import (XmippProtParticlePicking,
+                                                       XmippParticlePickingAutomatic)
+            # Include picking, extraction and 2D
+            protPick1 = _newProtocol(XmippProtParticlePicking,
+                                     objLabel='xmipp3 - supervised')
+            protPick1.inputMicrographs.set(protMC)
+            protPick1.inputMicrographs.setExtended('outputMicrographsDoseWeighted')
+            _saveProtocol(protPick1, movies=False)
+
+            protPick2 = _newProtocol(XmippParticlePickingAutomatic,
+                                     objLabel='xmipp3 - supervised',
+                                     streamingSleepOnWait=60,
+                                     streamingBatchSize=0)
+            protPick2.xmippParticlePicking.set(protPick1)
+            _saveProtocol(protPick2, movies=False)
+
+            from pyworkflow.em.packages.relion import (ProtRelionExtractParticles,
+                                                       ProtRelionClassify2D)
+
+            protExtract = _newProtocol(ProtRelionExtractParticles,
+                                       objLabel='relion - extract particles',
+                                       doInvert=True,
+                                       doNormalize=True,
+                                       streamingSleepOnWait=60,
+                                       streamingBatchSize=0)
+            protExtract.inputCoordinates.set(protPick2)
+            protExtract.inputCoordinates.setExtended('outputCoordinates')
+            _saveProtocol(protExtract, movies=False)
+
+            prot2D = _newProtocol(ProtRelionClassify2D,
+                                  objLabel='relion 2d - TEMPLATE',
+                                  numberOfClasses=100,
+                                  doGpu=True,
+                                  extraParams="--maxsig 10",
+                                  numberOfMpi=5,
+                                  numberOfThreads=2)
+            prot2D.inputParticles.set(protExtract)
+            prot2D.inputParticles.setExtended('outputParticles')
+            _saveProtocol(prot2D, movies=False)
+
+            from pyworkflow.em import ProtMonitor2dStreamer
+
+            protStreamer = _newProtocol(ProtMonitor2dStreamer,
+                                        objLabel='scipion - 2d streamer',
+                                        batchSize=20000)
+
+            protStreamer.inputParticles.set(protExtract)
+            protStreamer.inputParticles.setExtended('outputParticles')
+            protStreamer.input2dProtocol.set(prot2D)
+            _saveProtocol(protStreamer, movies=False)
 
     def getDataFile(self, filename):
         return os.path.join(self.dataFolder, filename)
@@ -209,45 +455,6 @@ class Data:
     def getUserFromStr(self, userStr):
         name, email = userStr.split('--')
         return self._usersDict[email.strip()]
-
-    def selectUser(self, user):
-        self.user = user
-        if user.isStaff:
-            self.projectType = None
-        else:
-            self.projectType = PROJECT_TYPES[1]
-            self._loadProjectId()
-
-    def getSelectedUser(self):
-        return self.user
-
-    def getSelectedReservation(self):
-        return self._selectedReservation
-
-    def selectProjectType(self, projType):
-        self.projectType = projType
-        if not self.user.isStaff:
-            raise Exception("Project type only can be selected for "
-                            "STAFF users.")
-        else:
-            self._loadProjectId()
-
-    def isNational(self):
-        return self.projectType == PROJECT_TYPES[0]
-
-    def getProjectType(self):
-        return self.projectType
-
-    def getProjectGroup(self):
-        return 'cem' if self.isNational() else self.user.getGroup()
-
-    def getDataFolder(self):
-        # Work around the 'int' folder prefix
-        groupDataFolder = GROUP_DATA[self.getProjectGroup()]
-        return os.path.join(DEFAULTS[DATA_FOLDER], groupDataFolder)
-
-    def getProjectFolder(self):
-        return os.path.join(self.getDataFolder(), self.getProjectId())
 
     def setProjectId(self, projId):
         self.projectId = projId
@@ -301,13 +508,7 @@ class Data:
     def getNationalProjects(self):
         return [o.getId() for o in self._accepted]
 
-    def getScipionProject(self):
-        now = self.now
-        return '%s_scipion_%04d%02d%02d' % (self.getProjectId(),
-                                            now.year, now.month, now.day)
 
-    def getScipionProjectFolder(self):
-        return os.path.join(self.getProjectFolder(), self.getScipionProject())
 
     def findUserFromReservation(self, reservation):
         """ Find the user of the given reservation .

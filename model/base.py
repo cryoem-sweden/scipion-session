@@ -71,6 +71,10 @@ class Person(DataObject):
     """ Simple class to hold name and email values. """
     ATTR_STR = ['email', 'name']
 
+    def setData(self, email, name):
+        self.email.set(email)
+        self.name.set(name)
+
 
 def parseCsv(csvFilename, skipFirst=True):
 
