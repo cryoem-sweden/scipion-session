@@ -296,8 +296,7 @@ class Data:
 
         _saveProtocol(protImport, movies=False)
 
-        useMC2 = True
-        useMC = False
+        useMC = True
         useOF = False
         useSM = False
         useCTF = True
@@ -311,7 +310,7 @@ class Data:
             from pyworkflow.em.packages.motioncorr import ProtMotionCorr
             protMC = _newProtocol(ProtMotionCorr,
                                  objLabel='Motioncorr',
-                                 useMotioncor2=useMC2,
+                                 useMotioncor2=True,
                                  doComputeMicThumbnail=True,
                                  computeAllFramesAvg=True,
                                  gpuList=gpuId,
@@ -455,60 +454,6 @@ class Data:
     def getUserFromStr(self, userStr):
         name, email = userStr.split('--')
         return self._usersDict[email.strip()]
-
-    def setProjectId(self, projId):
-        self.projectId = projId
-        if self.isNational():
-            self.cemCode = projId
-
-    def getProjectId(self):
-        return self.projectId
-
-    def _findNextProjectId(self):
-        print "Finding next internal project id..."
-        group = self.getProjectGroup()
-        print "  group: ", group
-
-        if not group in GROUP_DATA:
-            self.error = ("ERROR!!! Invalid group '%s'. \n"
-                          "Check that the user: %s has the correct "
-                          "information in the BOOKING SYSTEM. "
-                          % (group, self.user.getName()))
-            return None
-
-        folder = self.getDataFolder()
-        print "  folder: ", folder
-
-        if not os.path.exists(folder):
-            self.error = ("ERROR!!! Folder '%s' does not exists. \n"
-                          "This looks like a CONFIGURATION problem. \n"
-                          "Contact the administrator. " % folder)
-            return None
-
-        last = 0
-        groupRegex = re.compile("%s(\d{5})\Z" % group)
-        for d in os.listdir(folder):
-            if os.path.isdir(os.path.join(folder, d)):
-                m = groupRegex.match(d)
-                if m is None:
-                    print "Warning: Invalid folder %s inside %s" % (d, folder)
-                else:
-                    n = int(m.group(1))
-                    last = max(last, n)
-
-        return '%s%05d' % (group, last+1)
-
-    def _loadProjectId(self):
-        if self.isNational():
-            self.projectId = self.cemCode
-        else:
-            # Grab this from the log of sessions
-            self.projectId = self._findNextProjectId()
-
-    def getNationalProjects(self):
-        return [o.getId() for o in self._accepted]
-
-
 
     def findUserFromReservation(self, reservation):
         """ Find the user of the given reservation .
