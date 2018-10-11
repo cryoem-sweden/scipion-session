@@ -139,6 +139,8 @@ class Data:
         # Update now variable
         self.now = dt.datetime.now()
 
+        cem = cem.lower()
+
         if projectType == PROJ_NATIONAL:
             group = cem
         elif projectType == PROJ_FACILITY:
