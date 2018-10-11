@@ -443,7 +443,7 @@ class BoxWizardView(tk.Frame):
 
         r = data.reservation
         if r is not None:
-            r.printAll()
+            #r.printAll()
             cem = r.getCemCode()
             if cem:
                 self._projectChooser.selectIndex(PROJ_NATIONAL)
