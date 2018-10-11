@@ -66,7 +66,6 @@ class BoxWizardWindow(ProjectBaseWindow):
         self.generalCfg = settings.getConfig()
 
         self.data = kwargs.get('data')
-        self.microscope = self.data.microscope
 
         ProjectBaseWindow.__init__(self, title, minsize=(800, 700), **kwargs)
         self.viewFuncs = {VIEW_WIZARD: BoxWizardView}
@@ -118,7 +117,6 @@ class BoxWizardView(tk.Frame):
         self.root = windows.root
         self.vars = {}
         self.checkvars = []
-        self.microscope = self.windows.microscope
         # Regular expression to validate username and sample name
         self.re = re.compile('\A[a-zA-Z][a-zA-Z0-9_-]+\Z')
 
@@ -438,9 +436,32 @@ class BoxWizardView(tk.Frame):
         __addLabeledWidget("Pre-processing", f4, pady=(EXTRA_PAD, 0), bold=True)
 
         # Select Krios, TESTING
-        f1.selectIndex(self._micOrder[self.microscope])
+        data = self.data
+        f1.selectIndex(self._micOrder[data.microscope])
         # Select Scipion as default for pre-processing
         f4.selectIndex(0)
+
+        r = data.reservation
+        if r is not None:
+            r.printAll()
+            cem = r.getCemCode()
+            if cem:
+                self._projectChooser.selectIndex(PROJ_NATIONAL)
+                if cem.upper() in self._bagsDict:
+                    self._cemCombo.var.set(cem.upper())
+                    _onSelectCEM()
+            u = r.user
+            foundUser = False
+            if u is not None:
+                for i, operator in enumerate(STAFF):
+                    if u.email.get() in operator:
+                        self._operatorCombo.var.set(operator)
+                        _onChange()
+                        foundUser = True
+                if not foundUser:
+                    self._projectChooser.selectIndex(PROJ_INTERNAL)
+                    _onChangeProjectType(self._projectChooser)
+            #_checkSessionAction()
 
     def _isValidUserStr(self, userStr):
         """ Valid user string is:  Name -- email """

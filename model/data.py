@@ -96,7 +96,7 @@ class Data:
         self.projectId = None
         self.group = None
         self.cemCode = None
-        self._reservation = None
+        self.reservation = None
 
         reservations = self.findReservationFromDate(self.date, self.microscope)
         if reservations:
@@ -111,7 +111,7 @@ class Data:
                         r = tr
                         break
 
-            self._reservation = r
+            self.reservation = r
         else:
             print "No reservation found today for '%s'" % self.microscope
 
@@ -194,7 +194,7 @@ class Data:
         readmeFn = session.getPath('README_%s.txt' % self.getNowStr())
         with codecs.open(readmeFn, "w", "utf-8") as f:
             #TODO: store some info from the reservation
-            r = self._reservation
+            r = self.reservation
 
             def _writePerson(p, prefix):
                 f.write("%s.name: %s\n" % (prefix, p.name))
