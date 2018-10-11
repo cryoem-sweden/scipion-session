@@ -249,8 +249,14 @@ class BoxWizardView(tk.Frame):
                 if self._piCombo.var.get() == LABEL_SELECT_PI:
                     return LABEL_SELECT_PI
 
-                if not self._userCombo.var.get():
+                userValue = self._userCombo.var.get()
+                if not userValue or not self._isValidUserStr(userValue):
                     return LABEL_SELECT_USER
+
+            def checkOperator():
+                operator = self._operatorCombo.var.get()
+                if not self._isValidUserStr(operator):
+                    return "Select operator"
 
             mic = self._micChooser.getSelectedIndex()
             if mic is None:
@@ -267,17 +273,22 @@ class BoxWizardView(tk.Frame):
             if proj == PROJ_NATIONAL:
                 if self._cemCombo.var.get() == LABEL_SELECT_CEM:
                     return LABEL_SELECT_CEM
-                return checkPiAndUser()
+                return checkPiAndUser() or checkOperator()
             elif proj == PROJ_INTERNAL:
                 return checkPiAndUser()
             else:
-                pass
+                return checkOperator()
 
             return None
 
         def _checkSessionAction():
             action = _getSessionAction()
-            msg = action or 'sessionXXX'
+
+            if action is None:
+                msg = self._createSession().getId()
+            else:
+                msg = action
+
             self._sessionLabel.config(fg='red' if action else 'green')
             self._sessionVar.set(msg)
             btn = getattr(self, '_newSessionBtn', None)
@@ -297,7 +308,8 @@ class BoxWizardView(tk.Frame):
 
         def _configCombo(combo, selection='', values=[]):
             combo.set(selection)
-            combo['values'] = values
+            if values is not None:
+                combo['values'] = values
 
         def _getAccountList(filterFunc):
             """ Return a list of strings name -- email
@@ -326,6 +338,7 @@ class BoxWizardView(tk.Frame):
                 piFilter = lambda a: a['pi'] and a['university'] == 'SU'
                 piConfig = {'selection': LABEL_SELECT_PI,
                             'values': _getAccountList(piFilter)}
+                _configCombo(self._operatorCombo, values=None)
             elif i == PROJ_FACILITY:
                 piConfig['selection'] = LABEL_NONE
             else:
@@ -349,8 +362,9 @@ class BoxWizardView(tk.Frame):
             _configCombo(self._userCombo, values=_getAccountList(userFilter))
             _checkSessionAction()
 
-        def _onSelectUser(*args):
-            _checkSessionAction()
+        def _onChange(*args):
+            if hasattr(self, '_sessionLabel'):
+                _checkSessionAction()
 
         EXTRA_PAD = 30
 
@@ -363,14 +377,13 @@ class BoxWizardView(tk.Frame):
         self._micChooser = f1
 
         f2 = OptionChooser(frame, bg='white', optionWidth=200)
-        #f2.onSelectionChanged(onSelection)
+        f2.onSelectionChanged(_onChange)
         f2.addOption('K2')
         f2.addOption('Falcon 3')
         self._camRow = self._lastRow
         __addLabeledWidget("Camera", f2)
 
         f2b = OptionChooser(frame, bg='white', optionWidth=200)
-        #f2.onSelectionChanged(onSelection)
         f2b.addOption('Falcon 3')
         f2b.selectIndex(0)
 
@@ -399,10 +412,13 @@ class BoxWizardView(tk.Frame):
         __addLabeledWidget("PI", self._piCombo)
 
         self._userCombo = __createCombobox([], readOnly=False,
-                                           callback=_onSelectUser)
+                                           callback=_onChange)
+        self._userCombo.var.trace('w', _onChange)
+
         __addLabeledWidget("User", self._userCombo)
 
-        self._operatorCombo = __createCombobox(STAFF)
+        self._operatorCombo = __createCombobox(STAFF,
+                                               callback=_onChange)
         __addLabeledWidget("Operator", self._operatorCombo)
 
         f4 = OptionChooser(frame, bg='white', optionWidth=200)
@@ -432,28 +448,33 @@ class BoxWizardView(tk.Frame):
         return (len(parts) == 2 and all(p.strip() for p in parts)
                 and all(c in parts[1] for c in '.@'))
 
+    def _createSession(self):
+        mic = self._micChooser.getSelectedIndex()
+        microscope = MICROSCOPES[mic]
+        camera = MIC_CAMERAS[microscope][self._camChoosers[mic].getSelectedIndex()]
+        projectType = self._projectChooser.getSelectedIndex()
+
+        def _getPersonFromCombo(combo):
+            value = combo.var.get()
+            if self._isValidUserStr(value):
+                name, email = value.split('--')
+                return Person(name=name.strip(), email=email.strip())
+            else:
+                return None
+
+        session = self.data.createSession(microscope, camera, projectType,
+                                          cem=self._cemCombo.var.get(),
+                                          pi=_getPersonFromCombo(self._piCombo),
+                                          user=_getPersonFromCombo(self._userCombo),
+                                          operator=_getPersonFromCombo(self._operatorCombo),
+                                          preprocessing=self._prepChooser.getSelectedText()
+                                          )
+        return session
+
     def _onAction(self, e=None):
         try:
-            mic = self._micChooser.getSelectedIndex()
-            microscope = MICROSCOPES[mic]
-            camera = MIC_CAMERAS[microscope][self._camChoosers[mic].getSelectedIndex()]
-            projectType = self._projectChooser.getSelectedIndex()
-
-            def _getPersonFromCombo(combo):
-                value = combo.var.get()
-                if self._isValidUserStr(value):
-                    name, email = value.split('--')
-                    return Person(name=name.strip(), email=email.strip())
-                else:
-                    return None
-
-            session = self.data.createSession(microscope, camera, projectType,
-                                              cem=self._cemCombo.var.get(),
-                                              pi=_getPersonFromCombo(self._piCombo),
-                                              user=_getPersonFromCombo(self._userCombo),
-                                              operator=_getPersonFromCombo(self._operatorCombo),
-                                              preprocessing=self._prepChooser.getSelectedText()
-                                              )
+            session = self._createSession()
+            self.data.storeSession(session)
 
             if session.getScipionProjectName():
                 os.system('%s project %s &'
