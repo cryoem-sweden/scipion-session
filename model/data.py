@@ -152,8 +152,10 @@ class Data:
 
         # Take only the first 3 character for the data folder
         session.setPath(os.path.join(DEFAULTS[DATA_FOLDER], group[:3], session.getId()))
-
-
+        if preprocessing == 'Scipion':
+            session.setScipionProjectName('%s_scipion_%s'
+                                          % (session.getId(),
+                                             self.getNowStr()))
         if pi:
             session.pi = pi
 
@@ -163,18 +165,17 @@ class Data:
         if operator:
             session.operator = operator
 
-        session.printAll()
+        return session
 
+    def storeSession(self, session):
         self._createFolder(session.getPath())
         self._createSessionReadme(session)
-        if preprocessing == 'Scipion':
+        if session.getScipionProjectName():
             session.setScipionProjectName('%s_scipion_%s'
                                           % (session.getId(),
                                              self.getNowStr()))
             self._createSessionScipionProject(session)
-        self.storeSession(session)
-
-        return session
+        self.sMan.storeSession(session)
 
     def _createFolder(self, p):
         if os.path.exists(p):
@@ -207,9 +208,6 @@ class Data:
             f.write("description: %s\n" % desc)
 
             f.write("date: %s\n" % self.getNowStr())
-
-    def storeSession(self, session):
-        self.sMan.storeSession(session)
 
     def getSessions(self):
         return self.sMan.getSessions()

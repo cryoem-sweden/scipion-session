@@ -119,7 +119,7 @@ class SessionManager:
         # Update counter
         group, counter = session.getGroupCounter()
         countersDict = self._sessions.counters.get()
-        countersDict[group] = counter + 1
+        countersDict[group.lower()] = counter + 1
         self._sessions.counters.set(countersDict)
         self._sessions.write()
 
@@ -144,5 +144,5 @@ class SessionManager:
         print("SessionManager.getNextId: ")
         self._sessions.printAll()
         countersDict = self._sessions.counters.get()
-        return countersDict.get(group, 1)
+        return countersDict.get(group.lower(), 1)
 
