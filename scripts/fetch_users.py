@@ -6,7 +6,17 @@ import pyworkflow.utils as pwutils
 
 from model.datasource.booking import BookingManager
 from model.user import loadUsersFromJson
+from model.datasource.portal import PortalManager
+from model.order import loadAccountsFromJson
 from config import *
+
+
+def _getAccountsEmailSet():
+    apiJsonFile = 'data/%s' % PORTAL_API
+    pMan = PortalManager(apiJsonFile)
+    # Fetch users from the Portal
+    accounts = loadAccountsFromJson(pMan.fetchAccountsJson(), isPi=False)
+    return set(u['email'] for u in accounts)
 
 
 if __name__ == "__main__":
@@ -27,42 +37,22 @@ if __name__ == "__main__":
 
     print 'Users: ', len(uJson['users'])
 
-    with open(getDataFile(LABS_FILE)) as labsJsonFile:
-        labInfo = json.load(labsJsonFile)
+    accountsSet = _getAccountsEmailSet()
 
-    headers = ["Name", "Email", "Phone", "Group"]
-    row_format = u"{:<30}{:<35}{:<15}{:<20}"
+    headers = ["Name", "Email", "Phone", "Group", "In Portal"]
+    row_format = u"{:<30}{:<35}{:<15}{:<20}{:<10}"
     print row_format.format(*headers)
 
     users = loadUsersFromJson(uJson['users'])
     # Validate users' organization is well formed
     for u in users:
-        print(row_format.format(u.getFullName(),
-                          u.getEmail(),
-                          u.phone.get(),
-                          u.group.get()))
-        # group = u.getGroup()
-        # groupParts = group.split()
-        # try:
-        #     groupName = groupParts[0].lower()
-        # except Exception:
-        #     print "ERROR: Wrong group name: %s, user: %s" % (group, u.getName())
-        #
-        # if u.getGroup() not in USER_GROUPS:
-        #     print "ERROR: Wrong group name"
-        #     u.printAll()
-        #
-        # if u.getGroup() in ['dbb', 'sll'] and not u.getLab() in labInfo:
-        #     print "ERROR: Wrong lab name"
-        #     u.printAll()
+        print(row_format.format(
+            u.getFullName(),
+            u.getEmail(),
+            u.phone.get(),
+            u.group.get(),
+            'Yes' if u.getEmail() in accountsSet else 'No',
+            ))
 
-
-    # Fetch orders from the Portal
-    # pMan = PortalManager('data/portal-api.json')
-    #
-    # accountsJson = pMan.fetchAccountsJson()
-    # print "Accounts: ", len(accountsJson['items'])
-    # accountsFile = open('data/test-portal-accounts.json', 'w')
-    # json.dump(accountsJson, accountsFile, indent=2)
-    # accountsFile.close()
-
+    #emails = [u.getEmail() for u in users]
+    #print ",".join(emails)
