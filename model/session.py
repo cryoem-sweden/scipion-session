@@ -141,8 +141,6 @@ class SessionManager:
         the existing counters. If the group is not there,
         the id will be 1.
         """
-        print("SessionManager.getNextId: ")
-        self._sessions.printAll()
         countersDict = self._sessions.counters.get()
         return countersDict.get(group.lower(), 1)
 
