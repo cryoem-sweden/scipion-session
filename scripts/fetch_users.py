@@ -30,23 +30,31 @@ if __name__ == "__main__":
     with open(getDataFile(LABS_FILE)) as labsJsonFile:
         labInfo = json.load(labsJsonFile)
 
+    headers = ["Name", "Email", "Phone", "Group"]
+    row_format = u"{:<30}{:<35}{:<15}{:<20}"
+    print row_format.format(*headers)
+
     users = loadUsersFromJson(uJson['users'])
     # Validate users' organization is well formed
     for u in users:
-        group = u.getGroup()
-        groupParts = group.split()
-        try:
-            groupName = groupParts[0].lower()
-        except Exception:
-            print "ERROR: Wrong group name: %s, user: %s" % (group, u.getName())
-
-        if u.getGroup() not in USER_GROUPS:
-            print "ERROR: Wrong group name"
-            u.printAll()
-
-        if u.getGroup() in ['dbb', 'sll'] and not u.getLab() in labInfo:
-            print "ERROR: Wrong lab name"
-            u.printAll()
+        print(row_format.format(u.getFullName(),
+                          u.getEmail(),
+                          u.phone.get(),
+                          u.group.get()))
+        # group = u.getGroup()
+        # groupParts = group.split()
+        # try:
+        #     groupName = groupParts[0].lower()
+        # except Exception:
+        #     print "ERROR: Wrong group name: %s, user: %s" % (group, u.getName())
+        #
+        # if u.getGroup() not in USER_GROUPS:
+        #     print "ERROR: Wrong group name"
+        #     u.printAll()
+        #
+        # if u.getGroup() in ['dbb', 'sll'] and not u.getLab() in labInfo:
+        #     print "ERROR: Wrong lab name"
+        #     u.printAll()
 
 
     # Fetch orders from the Portal
