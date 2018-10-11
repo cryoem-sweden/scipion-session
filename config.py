@@ -1,7 +1,7 @@
 
 
 VERSION = '0.2.0'
-DATE = '2018-10-10'
+DATE = '2018-10-11'
 
 
 VIEW_WIZARD = 'wizardview'
