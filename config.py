@@ -1,7 +1,7 @@
 
 
-VERSION = '0.2.0'
-DATE = '2018-10-11'
+VERSION = '0.2.1'
+DATE = '2018-11-21'
 
 
 VIEW_WIZARD = 'wizardview'
@@ -108,7 +108,8 @@ GROUP_DATA = {
 }
 
 STAFF = ['Marta Carroni -- marta.carroni@scilifelab.se',
-         'Julian Conrad -- julian.conrad@scilifelab.se']
+         'Julian Conrad -- julian.conrad@scilifelab.se',
+         'Karin Wallden -- karin.wallden@scilifelab.se']
 
 PROJECT_TYPES = ['National Facility Project',
                  'Internal Project']
