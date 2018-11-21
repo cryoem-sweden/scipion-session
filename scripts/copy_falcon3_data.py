@@ -33,12 +33,17 @@ def system(cmd):
 
 class ProjCode:
     GROUPS = ['cem', 'fac', 'sll', 'dbb']
-    REGEX = re.compile("(%s)(\d+)" % '|'.join(GROUPS))
+    REGEX = re.compile("(%s)(\d+)" % '|'.join(GROUPS[1:]))
+    REGEX_CEM = re.compile("(cem)(\d+)_(\d+)")
 
-    def __init__(self, group, number):
+    def __init__(self, group, number, count=0):
         self.group = group
         self.number = int(number)
-        self.code = "%s%05d" % (group, self.number)
+        self.count = int(count)
+        if group == 'cem':
+            self.code = "%s%05d_%05d" % (group, self.number, self.count)
+        else:
+            self.code = "%s%05d" % (group, self.number)
 
     def __str__(self):
         return self.code
@@ -49,15 +54,27 @@ class ProjCode:
         string. Return None if not possible to parse """
         inputLower = inputStr.lower()
 
-        m = cls.REGEX.search(inputLower)
+        isNational = 'cem0' in inputLower
+        regex = cls.REGEX_CEM if isNational else cls.REGEX
+
+        m = regex.search(inputLower)
 
         if m is not None:
+            for g in m.groups():
+                print(g)
+
             group = m.groups()[0]
             digits = m.groups()[1]
             if len(digits) != 5:
                 print("WARNING: Wrong number of digits for project code in: ",
                       inputStr)
-            return ProjCode(group, digits)
+            count = 0
+            if isNational:
+                count = m.groups()[2]
+                if len(count) != 5:
+                    print("WARNING: Wrong number of digits for count value in: ",
+                          inputStr)
+            return ProjCode(group, digits, count)
         return None
 
 
