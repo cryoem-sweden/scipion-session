@@ -111,6 +111,26 @@ STAFF = ['Marta Carroni -- marta.carroni@scilifelab.se',
          'Julian Conrad -- julian.conrad@scilifelab.se',
          'Karin Wallden -- karin.wallden@scilifelab.se']
 
+# Temporary solution while some users are not registered in the Portal
+aa = 'amunts@scilifelab.se'
+el = 'erik.lindahl@scilifelab.se'
+mo = 'martin.ott@dbb.su.se'
+dd = 'ddrew@dbb.su.se'
+
+PI_MAP = {
+    'axelssonlinnea@live.com': aa,
+    'vivek.singh@scilifelab.se': aa,
+    'bjorn.forsberg@scilifelab.se': el,
+    'andreas.carlstrom@dbb.su.se': mo,
+    'andreascarlstroem@gmail.com': mo,
+    'pascal.meier@dbb.su.se': dd,
+    'sorbhi.rathore@dbb.su.se': mo,
+    'maximilian.kahle@dbb.su.se': 'piaa@dbb.su.se',
+    'bwiseman11@gmail.com': 'hogbom@dbb.su.se',
+    'markel.martinez@dbb.su.se': 'stenmark@dbb.su.se'
+}
+
+
 PROJECT_TYPES = ['National Facility Project',
                  'Internal Project']
 
@@ -209,5 +229,6 @@ import os
 # Assume the data folder is in the same place as this script
 FILES_DATA_FOLDER = os.path.join(os.path.dirname(__file__), 'data')
 
-def getDataFile(fn):
-    return os.path.join(FILES_DATA_FOLDER, fn)
+
+def getDataFile(*paths):
+    return os.path.join(FILES_DATA_FOLDER, *paths)

@@ -66,7 +66,7 @@ class Reservation(DataObject):
         return d.days + (1 if d.seconds//3600 > 0 else 0)
 
     def _getDay(self, date):
-        """ Return the datime without hour. """
+        """ Return the datetime without hour. """
         return dt.datetime(year=date.year, month=date.month, day=date.day)
 
     def isActiveToday(self):
@@ -92,6 +92,10 @@ class Reservation(DataObject):
 
     def isNationalFacility(self):
         return self.getCemCode() is not None
+
+    def isDowntime(self):
+        t = self.title.get().lower()
+        return ('cycle' in t or 'down' in t or 'fei' in t or 'maintenance' in t)
 
 
 def loadReservations(userJsonFn, reservationsJsonFn, fromDate, toDate,
@@ -194,3 +198,53 @@ Column:  0,      1,    2,         3,      4,      5,            6,              
                                         userId=-1
                                         ))
     return reservations
+
+
+def printReservations(reservations):
+    """ Print a list of reservations with a nice format. """
+    headers = ["Start date", "End date", "Days", "Label", "Resource", "User Name", "Group"]
+    row_format = u"{:<15}{:<15}{:<5}{:<10}{:<10}{:<25}{:<15}"
+    print(row_format.format(*headers))
+
+    totalDays = 0
+    totalDaysDowntime = 0
+    lastMonth = None
+
+    for r in reservations:
+        days = r.getTotalDays()
+
+        begin = r.beginDate()
+        if begin.month != lastMonth:
+            print "Month: ", begin.month
+            lastMonth = begin.month
+
+        label = ''
+
+        if r.isDowntime():
+            totalDaysDowntime += days
+            label = 'downtime'
+        else:
+            totalDays += days
+
+        if r.isNationalFacility():
+            group = r.getCemCode()
+        else:
+            if r.user.isStaff():
+                group = 'facility'
+            else:
+                group = 'sll' if 'scilifelab' in r.user.getEmail() else 'dbb'
+                if not r.user.isPi() and not r.user.inPortalPi():
+                    group += '(no pi)'
+
+        row = (str(begin.date()),
+               str(r.endDate().date()),
+               days, label,
+               r.resource.get().split()[0],
+               r.user.getEmail(),
+               group)
+
+        print(row_format.format(*row))
+
+    print("Total days: ", totalDays)
+    print("Downtime: ", totalDaysDowntime)
+

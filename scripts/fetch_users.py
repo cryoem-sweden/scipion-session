@@ -1,58 +1,38 @@
+from __future__ import print_function
 
-import os
-import json
+import sys
 
-import pyworkflow.utils as pwutils
-
-from model.datasource.booking import BookingManager
-from model.user import loadUsersFromJson
-from model.datasource.portal import PortalManager
-from model.order import loadAccountsFromJson
+from model.user import printUsers
+from model.data import Data
 from config import *
 
 
-def _getAccountsEmailSet():
-    apiJsonFile = 'data/%s' % PORTAL_API
-    pMan = PortalManager(apiJsonFile)
-    # Fetch users from the Portal
-    accounts = loadAccountsFromJson(pMan.fetchAccountsJson(), isPi=False)
-    return set(u['email'] for u in accounts)
-
-
 if __name__ == "__main__":
-    # Assume the data folder is in the same place as this script
-    dataFolder = os.path.join(os.path.dirname(__file__), '../data')
-    # Load username and password for booked system
-    t = pwutils.Timer()
+    noInPortal = '--no-portal' in sys.argv
+    noPi = '--no-pi' in sys.argv
+    noSe = '--no-se' in sys.argv
 
-    t.tic()
-    bMan = BookingManager()
-    bookedUserFn = getDataFile(BOOKED_LOGIN_USER)
-    uJson = bMan.fetchUsersJson(bookedUserFn)
-    bookedUsersListFn = getDataFile(BOOKED_USERS_LIST)
-    with open(bookedUsersListFn, 'w') as usersFile:
-        json.dump(uJson, usersFile, indent=2)
+    data = Data(dataFolder=getDataFile())
+    users = data.getUsers()
 
-    t.toc()
+    def _noInPortal(u):
+        return not u.inPortal()
 
-    print 'Users: ', len(uJson['users'])
+    def _noPiInPortal(u):
+        return u.inPortal() and not u.isPi() and not u.getGroup() == 'fac' and not u.inPortalPi()
 
-    accountsSet = _getAccountsEmailSet()
+    def _noSe(u):
+        return not u.getEmail().endswith('.se')
 
-    headers = ["Name", "Email", "Phone", "Group", "In Portal"]
-    row_format = u"{:<30}{:<35}{:<15}{:<20}{:<10}"
-    print row_format.format(*headers)
+    if noInPortal:
+        users = filter(_noInPortal, users)
 
-    users = loadUsersFromJson(uJson['users'])
-    # Validate users' organization is well formed
-    for u in users:
-        print(row_format.format(
-            u.getFullName(),
-            u.getEmail(),
-            u.phone.get(),
-            u.group.get(),
-            'Yes' if u.getEmail() in accountsSet else 'No',
-            ))
+    if noPi:
+        users = filter(_noPiInPortal, users)
 
-    #emails = [u.getEmail() for u in users]
-    #print ",".join(emails)
+    if noSe:
+        users = filter(_noSe, users)
+
+    users.sort(key=lambda u: u.getFullName())
+    #printUsers(users)
+    print("Total: ", len(users))

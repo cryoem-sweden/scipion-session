@@ -75,6 +75,12 @@ class Person(DataObject):
         self.email.set(email)
         self.name.set(name)
 
+    def getName(self):
+        return self.name.get()
+
+    def getEmail(self):
+        return self.email.get()
+
 
 def parseCsv(csvFilename, skipFirst=True):
 

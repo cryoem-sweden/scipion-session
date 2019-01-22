@@ -5,6 +5,7 @@ import json
 import re
 import sys
 import codecs
+from collections import OrderedDict
 
 import pyworkflow.em as em
 import pyworkflow.utils as pwutils
@@ -13,10 +14,11 @@ from pyworkflow.manager import Manager
 from config import *
 from base import Person
 from order import loadOrders, loadAccountsFromJson, loadActiveBags
-from reservation import loadReservations
-from session import SessionManager, Session
-from user import loadUsersFromJsonFile
+from reservation import loadReservations, printReservations
+from session import SessionManager, Session, printSessions
+from user import loadUsersFromJsonFile, loadUsersFromJson, printUsers
 from datasource.portal import PortalManager
+from datasource.booking import BookingManager
 
 PROJ_NATIONAL = 0
 PROJ_INTERNAL = 1
@@ -30,65 +32,26 @@ class Data:
         self.now = dt.datetime.now()
         self.error = ''
 
-        if 'date' in kwargs:
-            self.date = kwargs['date']
+        if 'fromDate' in kwargs:
+            self.fromDate = kwargs['fromDate']
+            self.toDate = kwargs['toDate']
+            self.date = self.fromDate
+        else:
+            self.date = kwargs.get('date', dt.datetime.now())
             week = dt.timedelta(days=7)
             # Retrieve reservations from one week before to one week later
             # of the current date
-            fromDate = self.date - week
-            toDate = self.date + week
-        elif 'fromDate' in kwargs:
-            fromDate = kwargs['fromDate']
-            toDate = kwargs['toDate']
-            self.date = fromDate
+            self.fromDate = self.date - week
+            self.toDate = self.date + week
 
         print "Using day: ", self.date
+        self.pMan = PortalManager(self.getDataFile(PORTAL_API))
+        self.sMan = SessionManager(self.getDataFile(SESSIONS_FILE))
+        self.bMan = BookingManager()
 
-        apiJsonFile = self.getDataFile(PORTAL_API)
-        self.pMan = PortalManager(apiJsonFile)
-        # Fetch orders from the Portal and write to a json file
-        #users = self.pMan.fetchAccountsJson()
-
-        sessionsFile = self.getDataFile(SESSIONS_FILE)
-        self.sMan = SessionManager(sessionsFile)
-
-        usersFn = self.getDataFile(BOOKED_USERS_LIST)
-        self._users = loadUsersFromJsonFile(usersFn)
-        self._usersDict = {}
-
-        for u in self._users:
-            self._usersDict[u.email.get()] = u
-            u.isStaff = self._isUserStaff(u)
-
-        with open(self.getDataFile(LABS_FILE)) as labsJsonFile:
-            self._labInfo = json.load(labsJsonFile)
-
-        # Try to read the reservations from the booking system
-        # in case of a failure, try to read from cached-file
-        reservationsFn = self.getDataFile(BOOKED_RESERVATIONS)
-        userJsonFn = self.getDataFile(BOOKED_LOGIN_USER)
-        useLocal = int(os.environ.get('SESSION_WIZARD_LOCAL', 0))
-
-        try:
-            self._reservations = loadReservations(userJsonFn, reservationsFn,
-                                                  fromDate, toDate,
-                                                  fetchData=not useLocal)
-        except Exception as ex:
-            self._reservations = []  # work even without reservations
-
-        print("Loaded reservations: ", len(self._reservations))
-
-        ordersFn = self.getDataFile(PORTAL_ORDERS)
-        self._orders = loadOrders(ordersFn)
-
-        self._accepted = []
-        self._ordersDict = {}
-
-        for o in self._orders:
-            self._ordersDict[o.getId()] = o
-
-            if o.status == 'accepted':
-                self._accepted.append(o)
+        self._loadUsers()
+        self._loadOrders()
+        self._loadReservations()
 
         # Keep a configuration of user, project-type and project
         self.user = None
@@ -97,23 +60,6 @@ class Data:
         self.group = None
         self.cemCode = None
         self.reservation = None
-
-        reservations = self.findReservationFromDate(self.date, self.microscope)
-        if reservations:
-            n = len(reservations)
-            # If there are more than one reservation (probably some overlapping
-            # in the booking system), take the first one that starts today
-            r = reservations[0]
-            print "n: ", n
-            if n > 1:
-                for tr in reservations:
-                    if tr.startsToday():
-                        r = tr
-                        break
-
-            self.reservation = r
-        else:
-            print "No reservation found today for '%s'" % self.microscope
 
     def loadOrderDetails(self):
         if self.isNational():
@@ -133,6 +79,230 @@ class Data:
     def getNowStr(self):
         return "%04d%02d%02d" % (self.now.year, self.now.month, self.now.day)
 
+    def _loadUsers(self):
+        """ Load users from Booking and match information with the portal. """
+        print("Loading users......")
+
+        bookedUserFn = getDataFile(BOOKED_LOGIN_USER)
+        try:
+            uJson = self.bMan.fetchUsersJson(bookedUserFn)
+            bookedUsersListFn = getDataFile(BOOKED_USERS_LIST)
+            with open(bookedUsersListFn, 'w') as usersFile:
+                json.dump(uJson, usersFile, indent=2)
+            self._users = loadUsersFromJson(uJson)
+        except Exception as ex:
+            self._users = loadUsersFromJsonFile(bookedUsersListFn)
+        self._usersDict = {}
+
+        for u in self._users:
+            self._usersDict[u.getEmail()] = u
+            self._usersDict[u.bookedId.get()] = u
+
+        portalAccounts = self.getAccountsFromPortal()
+        accountsDict = {a['email']: a for a in portalAccounts}
+
+        noInPortal = []
+        noPi = []
+
+        for u in self._users:
+            a = accountsDict.get(u.getEmail(), None)
+            if a is None:
+                noInPortal.append(u)
+                piKey = PI_MAP.get(u.getEmail(), None)
+            else:
+                u.setAccount(a)
+                piKey = a['invoice_ref']
+                if u.isPi() or u.isStaff():
+                    continue
+                    # Try to check match the PI from Portal
+
+            piA = accountsDict.get(piKey, None)
+            if piA is None:
+                if a is not None:  # Report problem only once
+                    noPi.append(u)
+            else:
+                u.setPiAccount(piA)
+
+        if noInPortal:
+            print("\n>>>> Users NOT in PORTAL: ")
+            printUsers(noInPortal)
+
+        if noPi:
+            print("\n>>>> Users NO PI: ")
+            printUsers(noPi)
+
+    def getUsers(self):
+        return self._users
+
+    def getUserString(self, user):
+        return "%s  --  %s" % (user.getFullName(), user.getEmail())
+
+    def getUserStringList(self):
+        usList = []
+
+        # Add stuff personnel first
+        for email in STAFF:
+            usList.append(self.getUserString(self._usersDict[email]))
+        # Add other users
+        for u in self._users:
+            if not u.isStaff():
+                usList.append(self.getUserString(u))
+
+        return usList
+
+    def getUserFromStr(self, userStr):
+        name, email = userStr.split('--')
+        return self._usersDict[email.strip()]
+
+    def getAccountsFromPortal(self):
+        return loadAccountsFromJson(self.pMan.fetchAccountsJson(),
+                                    isPi=False, university=None)
+
+    def _loadOrders(self):
+        ordersFn = self.getDataFile(PORTAL_ORDERS)
+        self._orders = loadOrders(ordersFn)
+
+        print("Loaded orders: ", len(self._orders))
+
+        self._accepted = []
+        self._ordersDict = {}
+
+        for o in self._orders:
+            self._ordersDict[o.getId()] = o
+
+            if o.status == 'accepted':
+                self._accepted.append(o)
+
+    def _loadReservations(self):
+        # Try to read the reservations from the booking system
+        # in case of a failure, try to read from cached-file
+        reservationsFn = self.getDataFile(BOOKED_RESERVATIONS)
+        userJsonFn = self.getDataFile(BOOKED_LOGIN_USER)
+        useLocal = int(os.environ.get('SESSION_WIZARD_LOCAL', 0))
+
+        try:
+            self._reservations = loadReservations(userJsonFn, reservationsFn,
+                                                  self.fromDate, self.toDate,
+                                                  fetchData=not useLocal)
+            # Load the user for each reservation
+            for r in self._reservations:
+                r.user = self._usersDict[r.userId.get()]
+
+        except Exception as ex:
+            self._reservations = []  # work even without reservations
+
+        print("Loaded reservations: ", len(self._reservations))
+
+        reservations = self.findReservationFromDate(self.date, self.microscope)
+        if reservations:
+            n = len(reservations)
+            # If there are more than one reservation (probably some overlapping
+            # in the booking system), take the first one that starts today
+            r = reservations[0]
+            print "n: ", n
+            if n > 1:
+                for tr in reservations:
+                    if tr.startsToday():
+                        r = tr
+                        break
+
+            self.reservation = r
+        else:
+            print "No reservation found today for '%s'" % self.microscope
+
+    def getSessions(self):
+        # Let's try to remove duplicated sessions here
+        sessionDateMic = OrderedDict()
+        duplicates = []
+        noBooking = []
+
+        for s in self.sMan.getSessions():
+            sessionStartDate = s.getObjCreationAsDate()
+            if (sessionStartDate < self.fromDate or
+                sessionStartDate > self.toDate):
+                continue
+            session = s.clone()
+            session.date = sessionStartDate
+            session.reservation = None
+            dateMic = (sessionStartDate.date(), s.getMicroscope())
+
+            if dateMic in sessionDateMic:
+                duplicates.append(sessionDateMic[dateMic])
+
+            sessionDateMic[dateMic] = session
+
+        sessions = list(sessionDateMic.values())
+
+        for s in sessions:
+            # We only need the reservation for internal sessions
+            if not s.isNational():
+                r = self.findReservationFromDate(s.date,
+                                                 resource=s.getMicroscope(),
+                                                 status='starts')
+                if len(r) == 0:
+                    print("ERROR: NO reservation found!!!")
+                    print("     Date: %s, Microscope: %s" % (s.date, s.getMicroscope()))
+                    print("     SessionID: %s" % s.getId())
+                    noBooking.append(s)
+                else:
+                    if len(r) > 1:
+                        print("WARNING: more than one reservation found!!!")
+                        print("     Date: %s, Microscope: %s" % (s.date, s.getMicroscope()))
+                        print("Taking first one...")
+                    s.reservation = r[0]
+
+        print("\n>>> DUPLICATED (IGNORED) SESSIONS: ")
+        printSessions(duplicates)
+
+        print("\n>>> SESSIONS WITH NO BOOKING (CHECK!!!)")
+        printSessions(noBooking)
+
+        return sessions
+
+
+    def getDataFile(self, filename):
+        return os.path.join(self.dataFolder, filename)
+
+    def getResourceFile(self, filename):
+        return os.path.join(self.dataFolder, 'resources', filename)
+
+    def getReservations(self):
+        return self._reservations
+
+    def getOrder(self, cemCode):
+        return self._ordersDict.get(cemCode.lower(), None)
+
+
+    def findReservationFromDate(self, date, resource=None,
+                                status='active'):
+        """ Find the reservation of a given date and resource. """
+        def _active(r):
+            return r.isActiveOnDay(date) and (resource is None or
+                                              r.resource == resource)
+
+        def _starts(r):
+            return r.startsOnDay(date) and (resource is None or
+                                            r.resource == resource)
+
+        return self.findReservations(_active if status is 'active' else _starts)
+
+    def findReservations(self, conditionFunc):
+        """ Find reservations that satisfies the conditionFunc.
+        The corresponding users will be set.
+        """
+        reservations = []
+
+        for r in self._reservations:
+            if conditionFunc(r):
+                reservations.append(r)
+
+        return reservations
+
+    def getActiveBags(self):
+        return loadActiveBags(self.pMan)
+
+
+    # ================== SESSION CREATION METHODS ===============================
     def createSession(self, microscope, camera, projectType,
                       cem=None, pi=None, user=None, operator=None,
                       preprocessing=None):
@@ -210,9 +380,6 @@ class Data:
             f.write("description: %s\n" % desc)
 
             f.write("date: %s\n" % self.getNowStr())
-
-    def getSessions(self):
-        return self.sMan.getSessions()
 
     def _getConfValue(self, key, default=''):
         return DEFAULTS.get(key, default)
@@ -419,77 +586,3 @@ class Data:
             protStreamer.inputParticles.setExtended('outputParticles')
             protStreamer.input2dProtocol.set(prot2D)
             _saveProtocol(protStreamer, movies=False)
-
-    def getDataFile(self, filename):
-        return os.path.join(self.dataFolder, filename)
-
-    def getResourceFile(self, filename):
-        return os.path.join(self.dataFolder, 'resources', filename)
-
-    def getReservations(self):
-        return self._reservations
-
-    def getOrder(self, cemCode):
-        return self._ordersDict.get(cemCode.lower(), None)
-
-    def _isUserStaff(self, user):
-        return user.getEmail() in STAFF
-
-    def getUserString(self, user):
-        return "%s  --  %s" % (user.getFullName(), user.getEmail())
-
-    def getUserStringList(self):
-        usList = []
-
-        # Add stuff personnel first
-        for email in STAFF:
-            usList.append(self.getUserString(self._usersDict[email]))
-        # Add other users
-        for u in self._users:
-            if u.email.get() not in STAFF:
-                usList.append(self.getUserString(u))
-
-        return usList
-
-    def getUserFromStr(self, userStr):
-        name, email = userStr.split('--')
-        return self._usersDict[email.strip()]
-
-    def findUserFromReservation(self, reservation):
-        """ Find the user of the given reservation .
-        """
-        userId = reservation.userId.get()
-
-        for u in self._users:
-            if userId == u.bookedId.get():
-                return u
-
-        return None
-
-    def findReservationFromDate(self, date, resource=None):
-        """ Find the reservation of a given date and resource. """
-        def _active(r):
-            return r.isActiveOnDay(date) and (resource is None or
-                                              r.resource == resource)
-        return self.findReservations(_active)
-
-    def findReservations(self, conditionFunc):
-        """ Find reservations that satisfies the conditionFunc.
-        The corresponding users will be set.
-        """
-        reservations = []
-
-        for r in self._reservations:
-            if conditionFunc(r):
-                user = self.findUserFromReservation(r)
-                r.user = user
-                reservations.append(r)
-
-        return reservations
-
-    def getActiveBags(self):
-        return loadActiveBags(self.pMan)
-
-    def getAccountsFromPortal(self):
-        return loadAccountsFromJson(self.pMan.fetchAccountsJson(),
-                                    isPi=False, university=None)

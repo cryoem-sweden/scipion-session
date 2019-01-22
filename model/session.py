@@ -10,7 +10,6 @@ from order import Order
 from reservation import Reservation
 
 
-
 class Session(DataObject):
     def __init__(self, **kwargs):
         DataObject.__init__(self, **kwargs)
@@ -85,6 +84,9 @@ class Session(DataObject):
     def getScipionProjectPath(self):
         return self.getPath(self.getScipionProjectName())
 
+    def getStartDate(self):
+        return self.getObj
+
 
 class SessionSet(Set):
     ITEM_TYPE = Session
@@ -144,3 +146,18 @@ class SessionManager:
         countersDict = self._sessions.counters.get()
         return countersDict.get(group.lower(), 1)
 
+
+def printSessions(sessions):
+    headers = ["Date", "SessionId", "Microscope", "PI Name",
+               "User Name", "User Email"]
+    row_format = u"{:<25}{:<20}{:<15}{:<20}{:<20}{:<25}"
+    print(row_format.format(*headers))
+
+    for session in sessions:
+        row = (str(session.date),
+               session.getId(),
+               session.getMicroscope(),
+               session.pi.getName(),
+               session.user.getName(), session.user.getEmail()
+               )
+        print(row_format.format(*row))

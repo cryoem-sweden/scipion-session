@@ -8,10 +8,8 @@ import pyworkflow.object as pwobj
 import pyworkflow.utils as pwutils
 
 from config import *
-from model.datasource.booking import BookingManager
-from model.reservation import loadReservationsFromJson
-from model.user import loadUsersFromJson
-from model.session import SessionManager
+from model.data import Data
+from model.reservation import loadReservationsFromJson, printReservations
 
 
 def parseDate(dateStr):
@@ -27,28 +25,11 @@ if __name__ == "__main__":
     fromDate = parseDate(sys.argv[1]) if n > 1 else None
     toDate = parseDate(sys.argv[2]) if n > 2 else None
 
-    # Load username and password for booked system
-    t = pwutils.Timer()
+    data = Data(dataFolder=getDataFile(), fromDate=fromDate, toDate=toDate)
+    reservations = data.getReservations()
 
-    t.tic()
-    bMan = BookingManager()
-    bookedUserFn = getDataFile(BOOKED_LOGIN_USER)
-    rJson = bMan.fetchReservationsJson(bookedUserFn,
-                                       fromDate=fromDate, toDate=toDate)
-    uJson = bMan.fetchUsersJson(bookedUserFn)
-    t.toc()
-
-    rPath = getDataFile(BOOKED_RESERVATIONS)
-    with open(rPath, 'w') as rFile:
-        print("Writing reservations to: ", rPath)
-        json.dump(rJson, rFile, indent=2)
-    reservations = loadReservationsFromJson(rJson)
+    reservations = filter(lambda r: r.resource.get() == TALOS, reservations)
+    printReservations(reservations)
     print "Reservations: ", len(reservations)
-
-    # uPath = '%s/test-booked-users.json' % dataFolder
-    # with open(uPath, 'w') as rFile:
-    #     json.dump(uJson, rFile)
-    # users = loadUsersFromJson(uJson['users'])
-    # print 'Users: ', len(users)
 
 

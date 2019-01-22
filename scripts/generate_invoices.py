@@ -42,20 +42,11 @@ sys.path.append(ROOT)
 
 # Local imports after ROOT has been added to the path
 from model.data import Data
-from model.reservation import loadReservationsFromCsv
+from model.reservation import loadReservationsFromCsv, Reservation
+from model.session import Session
+from model.base import Person
 
-
-DATA = os.path.join(ROOT, 'data')
-
-def getDataFile(*args):
-    return os.path.join(DATA, *args)
-
-
-TITAN = 'Titan Krios'
-TALOS = 'Talos Arctica'
-
-MICROSCOPES = [TITAN, TALOS]
-#MICROSCOPES = [TALOS]
+from config import *
 
 
 def parseDate(dateStr):
@@ -115,10 +106,10 @@ def generateInvoice(infoDict, invoiceType, statsDict):
             writeAllEntries()
         elif '<!--- PERIOD --->' in line:
             outputHtml.write('from %04d-%02d-%02d to %04d-%02d-%02d  '
-                             '</br>Total: %d sessions / %d days'
+                             '</br>Total: %d sessions / %d days / %d SEK'
                              % (fromDate.year, fromDate.month, fromDate.day,
                                 toDate.year, toDate.month, toDate.day,
-                                len(infoDict), statsDict['days']))
+                                statsDict['sessions'], statsDict['days'], statsDict['cost']))
         elif '<!--- TIMESTAMP --->' in line:
             outputHtml.write('%s' % now)
         else:
@@ -154,171 +145,171 @@ def generateInvoiceCsv(infoDict, invoiceType, statsDict):
         f.write("# from %04d-%02d-%02d to %04d-%02d-%02d  \n"
                 % (fromDate.year, fromDate.month, fromDate.day,
                    toDate.year, toDate.month, toDate.day))
-        f.write("# Total: %d sessions / %d days \n"
-                % (len(infoDict), statsDict['days']))
+        f.write("# Total: %(sessions)d sessions / %(days)d days / %(cost)d SEK\n"
+                % statsDict)
         f.write("# Generated: %s \n" % now)
 
-        first = infoDict.values()[0]
-
-        f.write("\n%s\n" % " , ".join(k for k in first.keys()))
-
+        infoDictCopy = OrderedDict(infoDict)
         for d in infoDict.values():
-            f.write(" , ".join(escape(v) for v in d.values()) + '\n')
+            del d['Sessions']
+
+        first = infoDictCopy.values()[0]
+
+        import csv
+        with open(csvFn, 'w') as f:
+            writer = csv.writer(f, dialect=csv.excel)
+            writer.writerow(list(first.keys()))
+
+            for d in infoDictCopy.values():
+                writer.writerow([unicode(s).encode('utf-8') for s in d.values()])
 
         print("Written: %s" % csvFn)
     else:
         print("Error opening: %s" % csvFn)
 
 
-def getInfoFromOrders(reservations):
+def getInfoFromNationals(reservations, sessions):
     """ Create the info dictionary that will be used the invoices based
     on the reservations that are national facility projects (i.e. orders)
     """
-    rDict = {}
-
-    for r in reservations:
-        cemCode = r.getCemCode()
-        if r.resource in MICROSCOPES:
-            if r.isNationalFacility():
-                if cemCode not in rDict:
-                    rDict[cemCode] = []
-                rDict[cemCode].append(r)
-            else:
-                if 'cem0' in r.title.get().lower():
-                    print "Not CEM: ", r.title.get()
-
-    infoDict = OrderedDict()
-    statsDict = {'days': 0}
-
-    for cemCode in sorted(rDict.keys()):
-        # print "-" * 20
-        # print "CEM: ", cemCode
-        o = data.getOrder(cemCode)
-
-        if o is None:
-            print(">>> ERROR: Order not found for this CEM code: %s"
-                  % pwutils.redStr(cemCode))
-            for r in rDict[cemCode]:
-                print("    Resource: %s (%s - %s)"
-                      % (r.username, r.beginDate(), r.endDate()))
-                print("    User: %s" % r.username)
-
+    sessionsDict = OrderedDict()
+    wrongCemDict = {}
+    # First group all sessions by their CEM code
+    for session in sessions:
+        if not session.isNational():  # Just count national sessions
             continue
 
-        #print " title: ", o.getTitle()
-        #print " order.id: ", o.getId()
+        cemCode = session.getCem()
+        o = data.getOrder(cemCode)
 
+        if o is None and not cemCode in wrongCemDict:
+            print(">>> ERROR: Order not found for this CEM code: %s"
+                  % pwutils.redStr(cemCode))
+            wrongCemDict[cemCode] = True
+            continue
+
+        if cemCode not in sessionsDict:
+            sessionsDict[cemCode] = []
+
+        sList = sessionsDict[cemCode]
+        sList.append(session)
+
+    infoDict = OrderedDict()
+    statsDict = {'days': 0, 'sessions': 0, 'cost': 0}
+
+    for cemCode, sessionsList in sessionsDict.iteritems():
+        o = data.getOrder(cemCode)
         o.fields = data.getOrderDetails(cemCode)['fields']
+
+        #FIXME Truly compute the dates based on reservations
+        days = len(sessionsList)
+
+        sessionsDict = OrderedDict()  # used to remove duplicated sessions
+        for s in sessionsList:
+            sessionsDict[(s.date.date(), s.getMicroscope())] = s
+
+        sessionsStr = "<ul>"
+        for (date, microscope), s in sessionsDict.iteritems():
+            formatStr = '<li>%s  %s %s <ul><li>PI: %s, User: %s</li></ul></li>'
+            sessionsStr += (formatStr %
+                            (s.date.date(), s.getId(), s.getMicroscope(),
+                             s.pi.getName(), s.user.getName()))
+        sessionsStr += "</ul>"
 
         info = OrderedDict()
         info['Project Code'] = cemCode.upper()
-        info['Project Title'] = o.getTitle()
-        info['Hours allocated'] = 0
-        info['Dates'] = ''
+        #info['Project Title'] = o.getTitle()
+        info['Sessions'] = sessionsStr
+        info['Count (days)'] = days
+        info['Hours allocated'] = days * 24
+        cost = days * 5000
+        info['Amount (SEK)'] = cost
         info['PI'] = '%s </br></br> %s' % (o.getPi(), o.getPiEmail())
-        info['Amount (SEK)'] = 0
         info['Invoice Address'] = o.getInvoiceAddress()
         info['Invoice Reference'] = o.getInvoiceReference()
-        infoDict[cemCode] = info
-        dates = []
-        days = 0
 
-        for r in rDict[cemCode]:
-            d = r.beginDate()
-            duration = max(1, r.getTotalDays())
-            days += duration
-            dates.append('%04d-%02d-%02d (%s) (%d)' %
-                         (d.year, d.month, d.day,
-                          r.resource, duration))
-        info['Count (days)'] = days
-        info['Dates'] = '</br>'.join(dates)
-        info['Hours allocated'] = days * 24
-        info['Amount (SEK)'] = days * 5000
         statsDict['days'] += days
+        statsDict['sessions'] += len(sessionsList)
+        statsDict['cost'] += cost
+        infoDict[cemCode] = info
 
     return infoDict, statsDict
 
 
 def getInfoFromInternal(reservations, sessions, group):
     """
-
     :param reservations: We need this until all info is stored in sessions
     :param sessions: Stored sessions
     :param group: Should be either 'dbb' or 'sll'
     :return:
     """
     infoDict = OrderedDict()
-    statsDict = {'days': 0}
+    statsDict = {'days': 0, 'sessions': 0, 'cost': 0}
     i = 0
 
-    for s in sessions:
-        sessionCode = s.sessionCode.get()
-        if sessionCode.startswith(group):
-            r = s.reservation
-            if group == 'fac':
-                t = r.title.get().lower()
-                if ('cryocycle' in t or 'cryo cycle' in t or 'cryo-cycle' in t or
-                    'downtime' in t or 'down' in t or 'fei' in t or
-                    'maintenance' in t):
-                    continue
+    rDict = OrderedDict()
 
-            # print "-" * 20
-            # print "Session code: ", sessionCode
-            # print "date: ", s.reservation.beginDate()
+    # Group reservations by PI
+    for r in reservations:
+        u = r.user
+        if not r.user.getGroup().startswith(group) or r.isDowntime() or not r.resource.get() in MICROSCOPES:
+            continue
 
-            info = OrderedDict()
-            i += 1
+        if u.isStaff():
+            piKey = (u.getEmail(), u.getFullName())
+            piLabel = 'User'
+        else:
+            piEmail = (u.getEmail() if u.isPi() else u.getPiEmail()) or 'UNKNOWN PI'
+            piName = (u.getFullName() if u.isPi() else u.getPiName()) or 'UNKNOWN PI'
+            piKey = (piEmail, piName)
+            piLabel = 'PI'
 
-            info['Entry'] = i
-            info['Project Code'] = sessionCode
-            info['User'] = '%s </br></br> %s' % (s.user.name, s.user.email)
-            info['Dates'] = '%s (%s)' % (r.beginDate(),
-                                         s.microscope)
-            info['PI'] = '%s </br></br> %s' % (s.pi.name, s.pi.email)
-            days = r.getTotalDays()
-            cost = 5000 * days
-            statsDict['days'] += days
-            info['Amount (SEK)'] = cost
-            info['Duration (days)'] = days
-            invoice = s.invoice.get()
-            if invoice:
-                iAddr, iRef = invoice['address'], invoice['reference']
-            else:
-                iAddr, iRef = '', ''
-            info['Invoice Address'] = iAddr
-            info['Invoice Reference'] = iRef
-            infoDict[sessionCode+str(i)] = info
-            if group == 'fac':
-                info['Title'] = r.title.get()
+        if piKey not in rDict:
+            rDict[piKey] = []
+
+        rDict[piKey].append(r)
+
+    for piKey, reservations in rDict.iteritems():
+        # TODO: Check if we can grab the session id
+        #s = r.session
+        u = r.user
+
+        #sessionId = s.getId() if s is not None else ''
+
+        days = 0
+        sessionsStr = "<ul>"
+        for r in reservations:
+            formatStr = '<li>%s %s (%d) <ul><li>User: %s</li></ul></li>'
+            sessionsStr += (formatStr % (r.beginDate().date(),
+                                         r.resource.get(),
+                                         r.getTotalDays(),
+                                         r.user.getFullName()))
+            days += r.getTotalDays()
+        sessionsStr += "</ul>"
+
+        info = OrderedDict()
+        i += 1
+
+        info['Entry'] = i
+        info[piLabel] = piKey[1]
+        cost = 5000 * days
+
+        info['Sessions'] = sessionsStr
+        info['Duration (days)'] = days
+        info['Hours allocated'] = days * 24
+        info['Amount (SEK)'] = cost
+
+        statsDict['days'] += days
+        statsDict['sessions'] += len(reservations)
+        statsDict['cost'] += cost
+        # TODO: Get the PI's reference from the portalen
+        # iAddr, iRef = '', ''
+        # info['Invoice Address'] = iAddr
+        # info['Invoice Reference'] = iRef
+
+        infoDict[r.user.getGroup()+str(i)] = info
 
     return infoDict, statsDict
-
-def getSessionsFromReservations(data):
-    """ Update the session with information from the reservations...
-    """
-    reservations = data.getReservations()
-    reservations.sort(key=lambda r: r.beginDate())
-
-    sessions = []
-
-    #for s in sessions:
-    #    sessionDict[s.user.email.get()] = s.clone()
-
-    for r in reservations:
-        if not r.isNationalFacility() and r.resource in MICROSCOPES:
-            u = data.findUserFromReservation(r)
-            if u is None:
-                print("User is None for reservation: ", r)
-                continue
-            s = data.createSessionFromUser(u)
-            data.setupInternalSession(s, u)
-            s.isNational.set(False)
-            s.microscope.set(r.resource)
-            s.sessionCode.set(u.getGroup())
-            s.reservation = r
-            sessions.append(s)
-
-    return sessions
 
 
 NATIONAL = "National Projects"
@@ -339,7 +330,7 @@ if __name__ == "__main__":
     fromDate = parseDate(sys.argv[1])
     toDate = parseDate(sys.argv[2])
 
-    data = Data(dataFolder=DATA, fromDate=fromDate, toDate=toDate)
+    data = Data(dataFolder=getDataFile(), fromDate=fromDate, toDate=toDate)
 
     if '--csv' in sys.argv:
         csvIndex = sys.argv.index('--csv')
@@ -352,29 +343,10 @@ if __name__ == "__main__":
         allDict = OrderedDict()
         allStats = {}
 
-        # Generate invoices for national facility projects
-        allDict[NATIONAL], allStats[NATIONAL] = getInfoFromOrders(reservations)
-
         sessions = data.getSessions()
-        sessions = getSessionsFromReservations(data)
 
-        # Writing FAC booking reservations into a CSV file
-        # fn = getDataFile('fac-session.csv')
-        # f = codecs.open(fn, "w", "utf-8")
-        #
-        # print "Writing Facility sessions to: ", fn
-        # for s in sessions:
-        #     sessionCode = s.sessionCode.get()
-        #     if sessionCode.startswith('fac'):
-        #         d = s.reservation.beginDate()
-        #         print >> f,  "%s\t,%s,\t%s,\t%s,\t%s" % (s.reservation.reference.get(),
-        #                                             s.reservation.beginDate(),
-        #                                s.reservation.username.get(),
-        #                                s.microscope.get(),
-        #                                s.reservation.title.get())
-        #
-        # f.close()
-        # sys.exit(1)
+        # Generate invoices for national facility projects
+        allDict[NATIONAL], allStats[NATIONAL] = getInfoFromNationals(reservations, sessions)
 
         totalCount = {}
         MAINTENANCE = 'MAINTENANCE'
@@ -382,27 +354,13 @@ if __name__ == "__main__":
         for group in [DOWNTIME, MAINTENANCE]:
             allStats[group] = {'days': 0, 'count': 0}
 
-        for s in sessions:
-            sessionCode = s.sessionCode.get()
-            r = s.reservation
-            title = r.title.get().lower()
-
-            if r.resource in MICROSCOPES and sessionCode.startswith('fac'):
-                if ('downtime' in title or 'down' in title):
-                    allStats[DOWNTIME]['days'] += r.getTotalDays()
-                    allStats[DOWNTIME]['count'] += 1
-                if ('maintenance' in title or 'cryo-cycle' in title or 'cryo cycle' in title):
-                    allStats[MAINTENANCE]['days'] += r.getTotalDays()
-                    allStats[MAINTENANCE]['count'] += 1
-
-
         # Generate invoices for dbb projects
         allDict[DBB], allStats[DBB] = getInfoFromInternal(reservations, sessions, group='dbb')
-
-        # Generate invoices for dbb projects
+        #
+        # # Generate invoices for dbb projects
         allDict[SLL], allStats[SLL] = getInfoFromInternal(reservations, sessions, group='sll')
-
-        # Generate invoices for fac projects
+        #
+        # # Generate invoices for fac projects
         allDict[FAC], allStats[FAC] = getInfoFromInternal(reservations, sessions, group='fac')
 
         if not stats:

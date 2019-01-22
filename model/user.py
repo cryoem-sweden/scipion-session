@@ -2,16 +2,22 @@
 This module contains classes and utility functions to deal with users
 that can book the microscope and can start a session.
 """
-
+from __future__ import print_function
 import json
 
-import pyworkflow.object as pwobj
-from base import DataObject, parseCsv, UString
+from base import DataObject
+from config import STAFF
 
 
 class User(DataObject):
     ATTR_STR = ['email', 'userName', 'firstName', 'lastName',
                 'phone', 'group', 'lab', 'bookedId']
+
+    def __init__(self, **kwargs):
+        DataObject.__init__(self, **kwargs)
+        self._account = None
+        self._piAccount = None
+        self._isStaff = False
 
     def getEmail(self):
         return self.email.get()
@@ -26,13 +32,50 @@ class User(DataObject):
         return self.userName.get()
 
     def isStaff(self):
-        return getattr('piId', None) == -1
+        """ Users that are Facility staff. """
+        return self.getGroup() == 'fac'
+
+    def isUserStaff(self):
+        """ Facility staff that work with users. """
+        return self.getEmail() in STAFF
 
     def getLab(self):
         return self.lab.get()
 
     def getId(self):
         return self.bookedId.get()
+
+    def inPortal(self):
+        """ Return True if this user from the Booking system is
+        also registered in the Portal.
+        """
+        return self._account is not None
+
+    def inPortalPi(self):
+        return self._piAccount is not None
+
+    def getAccount(self):
+        """ Return the account json dict (from Portal). """
+        return self._account
+
+    def getPiAccount(self):
+        return self._piAccount
+
+    def setAccount(self, accountJson):
+        self._account = accountJson
+
+    def setPiAccount(self, accountJson):
+        self._piAccount = accountJson
+
+    def isPi(self):
+        """ Return True if this user is PI (info from portal). """
+        return self._account['pi'] if self.inPortal() else False
+
+    def getPiEmail(self):
+        return self._piAccount['email'] if self.inPortalPi() else ''
+
+    def getPiName(self):
+        return self._piAccount['name'] if self.inPortalPi() else ''
 
 
 def loadUsersFromJsonFile(usersJsonFn):
@@ -76,61 +119,36 @@ def userFromAccountJson(a):
                 bookedId=None)
 
 
+SPECIAL_EMAILS = ['nick@twinkletoessoftware.com',
+                  'lujorent@gmail.com']
+
+
+def _specialUser(u):
+    """ Return True for some special users that should be ignored.
+    """
+    return u['emailAddress'] in SPECIAL_EMAILS
+
+
 def loadUsersFromJson(usersJson):
     """ This will load users from the json retrieved from the
     booking system.
     """
-    return [userFromBookedJson(u) for u in usersJson]
+    return [userFromBookedJson(u) for u in usersJson if not _specialUser(u)]
 
 
-def mergeUsersAccounts(usersJson, accountsJson):
-    """ Merge users information from users in the booking system
-    and Accounts in the portal system.
-    """
+def printUsers(users):
+    """ Print the list of users. """
+    headers = ["Name", "Email", "Phone", "Group", "In Portal", "PI"]
+    row_format = u"{:<30}{:<35}{:<15}{:<15}{:<10}{:<10}"
 
-    def _updateUserFromAccount(user, a):
-        user.piId = pwobj.Integer(99999)
-        user.invoiceReference = UString()
-        user.invoiceAddress = UString()
-        user.university = UString('UNKNOWN')
+    print(row_format.format(*headers))
 
-        # Fill in more information from the corresponding Account
-        if a is not None:
-            if a['pi']:
-                user.piId.set(None)
-                user.invoiceReference.set(a['invoice_ref'])
-                user.invoiceAddress.set(json.dumps(a['invoice_address']))
-
-            user.university = UString('UNKNOWN')
-
-    accountsDict = {}
-    for a in accountsJson:
-        accountsDict[a['email']] = a
-
-    users = []
-    usersDict = {}
-    for u in usersJson:
-        email = u['emailAddress']
-        usersDict[email] = u
-        user = userFromBookedJson(u)
-
-        a = accountsDict.get(email, None)
-        _updateUserFromAccount(user, a)
-        users.append(user)
-
-    for a in accountsJson:
-        email = a['email']
-
-        if email not in usersDict:
-            user = userFromAccountJson(a)
-            _updateUserFromAccount(user, a)
-            users.append(user)
-
-    return users
-
-
-
-
-
-
-
+    for u in users:
+        print(row_format.format(
+            u.getFullName(),
+            u.getEmail(),
+            u.phone.get(),
+            u.group.get(),
+            'Yes' if u.inPortal() else 'No',
+            u.getPiName()
+            ))
