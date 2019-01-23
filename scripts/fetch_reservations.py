@@ -28,8 +28,22 @@ if __name__ == "__main__":
     data = Data(dataFolder=getDataFile(), fromDate=fromDate, toDate=toDate)
     reservations = data.getReservations()
 
-    reservations = filter(lambda r: r.resource.get() == TALOS, reservations)
+    reservations = filter(lambda r: r.resource.get() in MICROSCOPES, reservations)
+    stats = {TITAN: {'cem': 0, 'fac': 0, 'sll': 0, 'dbb': 0},
+             TALOS: {'cem': 0, 'fac': 0, 'sll': 0, 'dbb': 0}}
+
+    for r in reservations:
+        d = stats[r.resource.get()]
+        group = r.user.getGroup()
+
+        if r.isNationalFacility():
+            d['cem'] += r.getTotalDays()
+        else:
+            d[group] += r.getTotalDays()
+
     printReservations(reservations)
     print "Reservations: ", len(reservations)
+
+    pwutils.prettyDict(stats)
 
 

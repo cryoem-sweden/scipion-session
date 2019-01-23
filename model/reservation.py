@@ -203,7 +203,7 @@ Column:  0,      1,    2,         3,      4,      5,            6,              
 def printReservations(reservations):
     """ Print a list of reservations with a nice format. """
     headers = ["Start date", "End date", "Days", "Label", "Resource", "User Name", "Group"]
-    row_format = u"{:<15}{:<15}{:<5}{:<10}{:<10}{:<25}{:<15}"
+    row_format = u"{:<15}{:<15}{:<5}{:<10}{:<10}{:<35}{:<15}"
     print(row_format.format(*headers))
 
     totalDays = 0

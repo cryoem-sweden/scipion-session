@@ -120,7 +120,6 @@ def generateInvoice(infoDict, invoiceType, statsDict):
 
     # Convert to pdf, assuming that wkhtmltopdf is installed in the system
 
-
     pdfFn = htmlFn.replace('.html', '_%04d%02d%02d.pdf'
                            % (now.year, now.month, now.day))
     cmd = 'wkhtmltopdf --zoom 3 %s %s' % (htmlFn, pdfFn)
@@ -172,40 +171,32 @@ def getInfoFromNationals(reservations, sessions):
     """ Create the info dictionary that will be used the invoices based
     on the reservations that are national facility projects (i.e. orders)
     """
-    sessionsDict = OrderedDict()
-    wrongCemDict = {}
-    # First group all sessions by their CEM code
-    for session in sessions:
-        if not session.isNational():  # Just count national sessions
-            continue
-
-        cemCode = session.getCem()
-        o = data.getOrder(cemCode)
-
-        if o is None and not cemCode in wrongCemDict:
-            print(">>> ERROR: Order not found for this CEM code: %s"
-                  % pwutils.redStr(cemCode))
-            wrongCemDict[cemCode] = True
-            continue
-
-        if cemCode not in sessionsDict:
-            sessionsDict[cemCode] = []
-
-        sList = sessionsDict[cemCode]
-        sList.append(session)
-
+    cemDict = OrderedDict()
     infoDict = OrderedDict()
     statsDict = {'days': 0, 'sessions': 0, 'cost': 0}
 
-    for cemCode, sessionsList in sessionsDict.iteritems():
+    for r in reservations:
+        if not r.isNationalFacility():
+            continue
+        cemCode = r.getCemCode()
+        if not cemCode in cemDict:
+            cemDict[cemCode] = []
+        cemDict[cemCode].append(r)
+
+    for cemCode, cemReservations in cemDict.iteritems():
         o = data.getOrder(cemCode)
         o.fields = data.getOrderDetails(cemCode)['fields']
 
-        #FIXME Truly compute the dates based on reservations
-        days = len(sessionsList)
+        cemSessions = []
+        days = 0
+        for r in cemReservations:
+            days += r.getTotalDays()
+            for s in sessions:
+                if s.getCem() == cemCode and r.isActiveOnDay(s.date.date()):
+                    cemSessions.append(s)
 
         sessionsDict = OrderedDict()  # used to remove duplicated sessions
-        for s in sessionsList:
+        for s in cemSessions:
             sessionsDict[(s.date.date(), s.getMicroscope())] = s
 
         sessionsStr = "<ul>"
@@ -229,7 +220,7 @@ def getInfoFromNationals(reservations, sessions):
         info['Invoice Reference'] = o.getInvoiceReference()
 
         statsDict['days'] += days
-        statsDict['sessions'] += len(sessionsList)
+        statsDict['sessions'] += len(sessionsDict)
         statsDict['cost'] += cost
         infoDict[cemCode] = info
 
@@ -249,10 +240,17 @@ def getInfoFromInternal(reservations, sessions, group):
 
     rDict = OrderedDict()
 
+    def _matchGroup(u):
+        """ Check correct group. """
+        if isinstance(group, list):
+            return u.getGroup() in group
+        else:
+            return u.getGroup() == group
+
     # Group reservations by PI
     for r in reservations:
         u = r.user
-        if not r.user.getGroup().startswith(group) or r.isDowntime() or not r.resource.get() in MICROSCOPES:
+        if not _matchGroup(u) or r.isDowntime() or not r.resource.get() in MICROSCOPES:
             continue
 
         if u.isStaff():
@@ -355,10 +353,10 @@ if __name__ == "__main__":
             allStats[group] = {'days': 0, 'count': 0}
 
         # Generate invoices for dbb projects
-        allDict[DBB], allStats[DBB] = getInfoFromInternal(reservations, sessions, group='dbb')
+        #allDict[DBB], allStats[DBB] = getInfoFromInternal(reservations, sessions, group='dbb')
         #
         # # Generate invoices for dbb projects
-        allDict[SLL], allStats[SLL] = getInfoFromInternal(reservations, sessions, group='sll')
+        allDict[DBB], allStats[DBB] = getInfoFromInternal(reservations, sessions, group=['dbb', 'sll'])
         #
         # # Generate invoices for fac projects
         allDict[FAC], allStats[FAC] = getInfoFromInternal(reservations, sessions, group='fac')
