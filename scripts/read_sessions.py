@@ -40,20 +40,25 @@ dates = {'Talos Arctica': OrderedDict(),
          'Titan Krios': OrderedDict()
          }
 
-for session in sessionsSet:
-    microscope = session.getMicroscope()
-    dateStr = session.getObjCreation()
-    dt = session.getObjCreationAsDate()
-    date = dt.date()
 
-    # If there are duplicates (same day, same microscope) we will keep the last one
-    s = session.clone()
-    s.setObjCreation(dateStr)
-    dates[microscope][date] = s
+def _filterSession(session):
+    return session.getId().startswith('cem00258')
+
+
+for session in sessionsSet:
+    if _filterSession(session):
+        microscope = session.getMicroscope()
+        dateStr = session.getObjCreation()
+        dt = session.getObjCreationAsDate()
+        date = dt.date()
+
+        # If there are duplicates (same day, same microscope) we will keep the last one
+        s = session.clone()
+        s.setObjCreation(dateStr)
+        dates[microscope][date] = s
 
 for mic, micDict in dates.iteritems():
     print("\n>>>> Microscope: ", mic)
-
     for date, session in micDict.iteritems():
         row = (session.getObjCreation(),
                session.getId(),

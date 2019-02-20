@@ -28,7 +28,11 @@ if __name__ == "__main__":
     data = Data(dataFolder=getDataFile(), fromDate=fromDate, toDate=toDate)
     reservations = data.getReservations()
 
-    reservations = filter(lambda r: r.resource.get() in MICROSCOPES, reservations)
+    def _filterReservation(r):
+        isCEM = (r.isNationalFacility() and r.getCemCode().startswith('cem00258'))
+        return r.resource.get() in MICROSCOPES and isCEM
+
+    reservations = filter(_filterReservation, reservations)
     stats = {TITAN: {'cem': 0, 'fac': 0, 'sll': 0, 'dbb': 0},
              TALOS: {'cem': 0, 'fac': 0, 'sll': 0, 'dbb': 0}}
 
