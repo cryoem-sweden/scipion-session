@@ -29,7 +29,7 @@ if __name__ == "__main__":
     reservations = data.getReservations()
 
     def _filterReservation(r):
-        isCEM = (r.isNationalFacility() and r.getCemCode().startswith('cem00258'))
+        isCEM = (r.isNationalFacility())
         return r.resource.get() in MICROSCOPES and isCEM
 
     reservations = filter(_filterReservation, reservations)
