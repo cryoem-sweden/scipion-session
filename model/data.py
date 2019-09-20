@@ -32,7 +32,9 @@ class Data:
         self.now = dt.datetime.now()
         self.error = ''
 
-        if 'fromDate' in kwargs:
+        self.fromDate = kwargs.get('fromDate', None)
+
+        if self.fromDate is not None:
             self.fromDate = kwargs['fromDate']
             self.toDate = kwargs['toDate']
             self.date = self.fromDate

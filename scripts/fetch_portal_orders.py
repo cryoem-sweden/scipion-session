@@ -1,18 +1,38 @@
-"""Try accessing the API.
-NOTE: You need to change several items in this script to make it work:
-- The domain name must match your instance.
-- The API key is set for your account; see your account page.
-- The order IUID need to be changed, of course.
-NOTE: This uses the third-party 'requests' module, which is much nicer than
-the standard 'urllib' module.
-"""
+#!/usr/bin/env python
+# **************************************************************************
+# *
+# * Authors:     J.M. De la Rosa Trevin (delarosatrevin@scilifelab.se) [1]
+# *
+# * [1] SciLifeLab, Stockholm University
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 2 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# * 02111-1307  USA
+# *
+# *  All comments concerning this program package may be sent to the
+# *  e-mail address 'delarosatrevin@scilifelab.se'
+# *
+# **************************************************************************
+from __future__ import print_function
+from __future__ import absolute_import
+
 
 import argparse
 import json
-from config import *
 
 import pyworkflow.utils as pwutils
-
+from config import *
 from model.datasource.portal import PortalManager
 from model.order import loadOrdersFromJson
 
@@ -49,7 +69,7 @@ if args.list:
     ordersJson = pMan.fetchOrdersJson()
     ordersFn = 'data/%s' % PORTAL_ORDERS
     ordersFile = open(ordersFn, 'w')
-    print "Writing orders JSON to file: %s" % ordersFn
+    print("Writing orders JSON to file: %s" % ordersFn)
     json.dump(ordersJson, ordersFile, indent=2)
     ordersFile.close()
     orders = loadOrdersFromJson(ordersJson)
@@ -75,20 +95,23 @@ if args.list:
         orders = sorted(orders, key=keyFunc)
 
     for o in orders:
-        print "%s: %s" % (o.getId(), o.getTitle())
-        details = pMan.fetchOrderDetailsJson(o.getId())
-        piList = details['fields']['pi_list']
-        for name, email in piList:
-            print "   ", name, email
+        print("%s: %s" % (o.getId(), o.getTitle()))
+        # detailsJson = pMan.fetchOrderDetailsJson(o.getId())
+        # try:
+        #     piList = detailsJson['fields']['pi_list']
+        #     for name, email in piList:
+        #         print("   %s %s" % (name, email))
+        # except:
+        #     print("No pi_list on %s, url: %s"
+        #           % (o.getId(), detailsJson['id']))
 
-
-    print "Orders: ", len(orders)
+    print("Orders: ", len(orders))
 
 elif args.detailsCem:
     orderId = args.detailsCem
-    print "Retrieving details for first order: ", orderId
+    print("Retrieving details for first order: ", orderId)
     orderDetailsJson = pMan.fetchOrderDetailsJson(orderId)
-    print json.dumps(orderDetailsJson, indent=2)
+    print(json.dumps(orderDetailsJson, indent=2))
 
 
 t.toc()
