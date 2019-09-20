@@ -40,26 +40,57 @@ dates = {'Talos Arctica': OrderedDict(),
          'Titan Krios': OrderedDict()
          }
 
-for session in sessionsSet:
-    microscope = session.getMicroscope()
-    dateStr = session.getObjCreation()
-    dt = session.getObjCreationAsDate()
-    date = dt.date()
 
-    # If there are duplicates (same day, same microscope) we will keep the last one
-    s = session.clone()
-    s.setObjCreation(dateStr)
-    dates[microscope][date] = s
+def _filterSession(session):
+    return True
+    return session.pi.getName().startswith('Jens')
+    return session.getId().startswith('cem00258')
+
+
+for session in sessionsSet:
+    if _filterSession(session):
+        microscope = session.getMicroscope()
+        dateStr = session.getObjCreation()
+        dt = session.getObjCreationAsDate()
+        date = dt.date()
+
+        # If there are duplicates (same day, same microscope) we will keep the last one
+        s = session.clone()
+        s.setObjCreation(dateStr)
+        dates[microscope][date] = s
+
+piDict = {}
 
 for mic, micDict in dates.iteritems():
     print("\n>>>> Microscope: ", mic)
-
     for date, session in micDict.iteritems():
+        pi = session.pi
+        user = session.user
         row = (session.getObjCreation(),
                session.getId(),
-               session.pi.getName(),
-               session.user.getName(), session.user.getEmail()
+               pi.getName(),
+               user.getName(), user.getEmail()
                )
         print(row_format.format(*row))
 
+        # ------- Group users by PI --------------
+        if not pi.getEmail() in piDict:
+            piDict[pi.getEmail()] = (pi, session.getId()[:8], [])
+
+        _, _, piUsers = piDict[pi.getEmail()]
+        if not any(u.getEmail() == user.getEmail() for u in piUsers):
+            piUsers.append(user)
+
     print("Sessions: ", len(micDict))
+    values = list(piDict.values())
+    values.sort(key=lambda tuple: tuple[1])
+
+    lastCem = None
+    for pi, cem, piUsers in values:
+        if lastCem != cem:
+            print("\nCEM: %s" % cem)
+            lastCem = cem
+        print(pi.getName(), pi.getEmail())
+
+        for u in piUsers:
+            print("   -", u.getName(), u.getEmail())

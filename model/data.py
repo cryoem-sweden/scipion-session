@@ -9,7 +9,7 @@ from collections import OrderedDict
 
 import pyworkflow.em as em
 import pyworkflow.utils as pwutils
-from pyworkflow.manager import Manager
+from pyworkflow.project import Manager
 
 from config import *
 from base import Person
