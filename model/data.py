@@ -32,7 +32,9 @@ class Data:
         self.now = dt.datetime.now()
         self.error = ''
 
-        if 'fromDate' in kwargs:
+        self.fromDate = kwargs.get('fromDate', None)
+
+        if self.fromDate is not None:
             self.fromDate = kwargs['fromDate']
             self.toDate = kwargs['toDate']
             self.date = self.fromDate
@@ -301,7 +303,6 @@ class Data:
     def getActiveBags(self):
         return loadActiveBags(self.pMan)
 
-
     # ================== SESSION CREATION METHODS ===============================
     def createSession(self, microscope, camera, projectType,
                       cem=None, pi=None, user=None, operator=None,
@@ -386,10 +387,10 @@ class Data:
 
     def _createSessionScipionProject(self, session):
         manager = Manager()
-        projectPath = session.getScipionProjectPath()
-        self._createFolder(projectPath)
+        #projectPath = session.getScipionProjectPath()
+        #self._createFolder(projectPath)
         project = manager.createProject(session.getScipionProjectName(),
-                                        location=projectPath)
+                                        location=session.getPath())
         self.lastProt = None
 
         smtpServer = self._getConfValue(SMTP_SERVER, '')
@@ -474,7 +475,7 @@ class Data:
         protMC = None
         if useMC:
             # Create motioncorr
-            from pyworkflow.em.packages.motioncorr import ProtMotionCorr
+            ProtMotionCorr = pwutils.importFromPlugin('motioncorr.protocols', 'ProtMotionCorr')
             protMC = _newProtocol(ProtMotionCorr,
                                  objLabel='Motioncorr',
                                  useMotioncor2=True,
@@ -487,8 +488,7 @@ class Data:
 
         if useOF:
             # Create Optical Flow protocol
-            from pyworkflow.em.packages.xmipp3 import XmippProtOFAlignment
-
+            XmippProtOFAlignment = pwutils.importFromPlugin('xmipp3.protocols', 'XmippProtOFAlignment')
             protOF = _newProtocol(XmippProtOFAlignment,
                                  objLabel='Optical Flow',
                                  doSaveMovie=useSM,
@@ -496,7 +496,7 @@ class Data:
             _saveProtocol(protOF)
 
         if useSM:
-            from pyworkflow.em.packages.grigoriefflab import ProtSummovie
+            ProtSummovie = pwutils.importFromPlugin('grigoriefflab.protocols', 'ProtSummovie')
             protSM = _newProtocol(ProtSummovie,
                                  objLabel='Summovie',
                                  cleanInputMovies=useOF,
@@ -509,7 +509,7 @@ class Data:
 
         protCTF = None
         if useCTF:
-            from pyworkflow.em.packages.grigoriefflab import ProtCTFFind
+            ProtCTFFind = pwutils.importFromPlugin('grigoriefflab.protocols', 'ProtCTFFind')
             protCTF = _newProtocol(ProtCTFFind,
                                   objLabel='Ctffind',
                                   numberOfThreads=1,
@@ -519,7 +519,7 @@ class Data:
             _saveProtocol(protCTF, movies=False)
 
         if useGCTF:
-            from pyworkflow.em.packages.gctf import ProtGctf
+            ProtGctf = pwutils.importFromPlugin('gctf.protocols', 'ProtGctf')
             protGCTF = _newProtocol(ProtGctf,
                                     objLabel='Gctf',
                                     lowRes=lowRes, highRes=highRes,
@@ -536,8 +536,9 @@ class Data:
         project.saveProtocol(protMonitor)
 
         if protCTF is not None and protMC is not None:
-            from pyworkflow.em.packages.xmipp3 import (XmippProtParticlePicking,
-                                                       XmippParticlePickingAutomatic)
+            XmippProtParticlePicking = pwutils.importFromPlugin('xmipp3.protocols', 'XmippProtParticlePicking')
+            XmippParticlePickingAutomatic = pwutils.importFromPlugin('xmipp3.protocols',
+                                                                     'XmippParticlePickingAutomatic')
             # Include picking, extraction and 2D
             protPick1 = _newProtocol(XmippProtParticlePicking,
                                      objLabel='xmipp3 - supervised')
@@ -546,14 +547,14 @@ class Data:
             _saveProtocol(protPick1, movies=False)
 
             protPick2 = _newProtocol(XmippParticlePickingAutomatic,
-                                     objLabel='xmipp3 - supervised',
+                                     objLabel='xmipp3 - automatic',
                                      streamingSleepOnWait=60,
                                      streamingBatchSize=0)
             protPick2.xmippParticlePicking.set(protPick1)
             _saveProtocol(protPick2, movies=False)
 
-            from pyworkflow.em.packages.relion import (ProtRelionExtractParticles,
-                                                       ProtRelionClassify2D)
+            ProtRelionExtractParticles = pwutils.importFromPlugin('relion.protocols', 'ProtRelionExtractParticles')
+            ProtRelionClassify2D = pwutils.importFromPlugin('relion.protocols', 'ProtRelionClassify2D')
 
             protExtract = _newProtocol(ProtRelionExtractParticles,
                                        objLabel='relion - extract particles',

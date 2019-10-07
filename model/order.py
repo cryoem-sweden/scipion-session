@@ -31,7 +31,7 @@ class Order(DataObject):
         return self.fields.get('invoice_reference', None)
 
     def isBag(self):
-        return self.form['title'] == 'BAG application form'
+        return 'BAG application form' in self.form['title']
 
     def getStatus(self):
         return self.status.get()

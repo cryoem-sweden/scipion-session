@@ -27,9 +27,9 @@ pMan = PortalManager(apiJsonFile)
 piList = loadAccountsFromJson(pMan.fetchAccountsJson(), isPi=False)
 piSet = set(pi['email'] for pi in piList)
 
-for pi in piList:
-    name = "%s %s" % (pi['first_name'], pi['last_name'])
-    print "%25s" % name, pi['email']
+# for pi in piList:
+#     name = "%s %s" % (pi['first_name'], pi['last_name'])
+#     print "%25s" % name, pi['email']
 
 # Load active bags
 bags = loadActiveBags(pMan)

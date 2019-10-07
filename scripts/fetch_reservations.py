@@ -30,24 +30,33 @@ if __name__ == "__main__":
 
     def _filterReservation(r):
         isCEM = (r.isNationalFacility())
-        return r.resource.get() in MICROSCOPES and isCEM
+        return r.resource.get() in MICROSCOPES # and isCEM
 
     reservations = filter(_filterReservation, reservations)
-    stats = {TITAN: {'cem': 0, 'fac': 0, 'sll': 0, 'dbb': 0},
-             TALOS: {'cem': 0, 'fac': 0, 'sll': 0, 'dbb': 0}}
+    stats = {TITAN: {'cem': 0, 'fac': 0, 'sll': 0, 'dbb': 0, 'mmk': 0},
+             TALOS: {'cem': 0, 'fac': 0, 'sll': 0, 'dbb': 0, 'mmk': 0}}
+
+    wrongGroups = []
 
     for r in reservations:
         d = stats[r.resource.get()]
         group = r.user.getGroup()
-
         if r.isNationalFacility():
             d['cem'] += r.getTotalDays()
         else:
-            d[group] += r.getTotalDays()
+            if group not in d:
+                wrongGroups.append((group, r.username.get()))
+            else:
+                d[group] += r.getTotalDays()
 
     printReservations(reservations)
-    print "Reservations: ", len(reservations)
+    print("Reservations: %d" % len(reservations))
 
     pwutils.prettyDict(stats)
+
+    if wrongGroups:
+        print("ERROR: Wrong groups: ")
+    for group, username in wrongGroups:
+        print("   group: '%s', user: %s" % (group, username))
 
 

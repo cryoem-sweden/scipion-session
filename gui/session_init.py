@@ -38,7 +38,7 @@ import pyworkflow.gui as pwgui
 from pyworkflow.gui.project.base import ProjectBaseWindow
 from pyworkflow.gui.widgets import HotButton, Button
 from pyworkflow.gui import Message, Icon
-from pyworkflow.config import ProjectSettings
+from pyworkflow.project import ProjectSettings
 
 from model.data import *
 from chooser import OptionChooser
