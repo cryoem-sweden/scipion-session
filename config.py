@@ -117,18 +117,50 @@ aa = 'amunts@scilifelab.se'
 el = 'erik.lindahl@scilifelab.se'
 mo = 'martin.ott@dbb.su.se'
 dd = 'ddrew@dbb.su.se'
+gu = 'gunnar@dbb.su.se'
+pa = 'piaa@dbb.su.se'
+pb = 'peterb@dbb.su.se'
 
 PI_MAP = {
     'axelssonlinnea@live.com': aa,
+    'Linnea.axelsson@scilifelab.se': aa,
     'vivek.singh@scilifelab.se': aa,
+
     'bjorn.forsberg@scilifelab.se': el,
+    'marie.lycksell@scilifelab.se': el,
+
     'andreas.carlstrom@dbb.su.se': mo,
     'andreascarlstroem@gmail.com': mo,
-    'pascal.meier@dbb.su.se': dd,
     'sorbhi.rathore@dbb.su.se': mo,
-    'maximilian.kahle@dbb.su.se': 'piaa@dbb.su.se',
+    'mikaela@dbb.su.se': mo,
+
+    'pascal.meier@dbb.su.se': dd,
+    'yurie.chatzikyriakidou@dbb.su.se': dd,
+    'ashutosh.gulati@dbb.su.se': dd,
+    'iven.winkelmann@dbb.su.se': dd,
+
     'bwiseman11@gmail.com': 'hogbom@dbb.su.se',
-    'markel.martinez@dbb.su.se': 'stenmark@dbb.su.se'
+    'markel.martinez@dbb.su.se': 'stenmark@dbb.su.se',
+
+
+    # TODO: Register in the Application Portal!!!
+    'mara.laguna@scilifelab.se': aa,
+    'ane.metola@dbb.su.se': gu,
+    'jonathan.davies@dbb.su.se': gu,
+
+    'luka.bacic@icm.uu.se': 'sebastian.deindl@icm.uu.se',
+
+
+
+    'patrick.cottilli@scilifelab.se': aa,
+    'maximilian.kahle@dbb.su.se': pa,
+    'sylwia.krol@dbb.su.se': pb,
+
+    'soneya.majudar@icm.uu.se': 'suparna.sanyal@icm.uu.se',
+    'alena.stsiapanava@ki.se': 'luca.jovine@ki.se',
+
+    'hognyi.xu@mmk.su.se': 'hognyi.xu@mmk.su.se',
+    'hongyi.xu@mmk.su.se': 'hognyi.xu@mmk.su.se'
 }
 
 

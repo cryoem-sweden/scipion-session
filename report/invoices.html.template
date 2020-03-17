@@ -88,6 +88,9 @@ pre.bash {
     
 }
 
+@media print {
+  footer {page-break-after: always;}
+}
 
 </style>
 

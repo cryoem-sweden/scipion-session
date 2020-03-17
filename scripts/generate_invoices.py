@@ -189,22 +189,76 @@ def getInfoFromNationals(reservations, sessions):
 
         cemSessions = []
         days = 0
-        for r in cemReservations:
-            days += r.getTotalDays()
-            for s in sessions:
-                if s.getCem() == cemCode and r.isActiveOnDay(s.date.date()):
-                    cemSessions.append(s)
+        # for r in cemReservations:
+        #     days += r.getTotalDays()
+        #     for s in sessions:
+        #         if s.getCem() == cemCode and r.isActiveOnDay(s.date.date()):
+        #             s.reservation = r
+        #             cemSessions.append(s)
+        #
+        # sessionsDict = OrderedDict()  # used to remove duplicated sessions
+        # for s in cemSessions:
+        #     sessionsDict[(s.date.date(), s.getMicroscope())] = s
 
-        sessionsDict = OrderedDict()  # used to remove duplicated sessions
-        for s in cemSessions:
-            sessionsDict[(s.date.date(), s.getMicroscope())] = s
+        # sessionsStr = "<ul>"
+        # for (date, microscope), s in sessionsDict.iteritems():
+        #     formatStr = '<li>%s  %s %s <ul><li>PI: %s, User: %s</li></ul></li>'
+        #     sessionsStr += (formatStr %
+        #                     (s.date.date(), s.getId(), s.getMicroscope(),
+        #                      s.pi.getName(), s.user.getName()))
+        # sessionsStr += "</ul>"
+        totalSessions = 0
+        sessionsStr = ""
+        piDict = OrderedDict()
 
-        sessionsStr = "<ul>"
-        for (date, microscope), s in sessionsDict.iteritems():
-            formatStr = '<li>%s  %s %s <ul><li>PI: %s, User: %s</li></ul></li>'
-            sessionsStr += (formatStr %
-                            (s.date.date(), s.getId(), s.getMicroscope(),
-                             s.pi.getName(), s.user.getName()))
+        for microscope1 in MICROSCOPES:
+            sessionsStr += "<h4>%s</h4>" % microscope1
+            for r in cemReservations:
+                if r.resource != microscope1:
+                    continue
+
+                sessionsStr += ("<h6>%s %s - %s (%s)</h6><ul>"
+                                % (r.title, r.beginDate().date(),
+                                   r.endDate().date(), r.getTotalDays()))
+                days += r.getTotalDays()
+                r.sessions = []
+
+                for s in sessions:
+                    s.duration = 0
+                    if s.getCem() == cemCode and s.getMicroscope() == microscope1 and r.isActiveOnDay(s.date.date()):
+                        s.reservation = r
+                        if r.sessions:
+                            prevSession = r.sessions[-1]
+                            prevSession.duration = (s.date.date() - prevSession.date.date()).days
+                        r.sessions.append(s)
+                        totalSessions += 1
+
+                # Compute duration for last session inside this reservation
+                if r.sessions:
+                    prevSession = r.sessions[-1]
+                    prevSession.duration = (r.endDate().date() - prevSession.date.date()).days + 1
+
+                for s in r.sessions:
+                    formatStr = '<li>%s %s  (%d) <ul><li>PI: %s, User: %s</li></ul></li>'
+                    piName = s.pi.getName()
+                    sessionsStr += (formatStr % (s.date.date(), s.getId(), s.duration,
+                                                 piName, s.user.getName()))
+                    if piName not in piDict:
+                        piDict[piName] = 0
+                    piDict[piName] += s.duration
+
+                sessionsStr += "</ul>"
+
+            # for (date, microscope2), s in sessionsDict.items():
+            #     if microscope1 == microscope2:
+            #         formatStr = '<li>%s %s  (%d) <ul><li>PI: %s, User: %s</li></ul></li>'
+            #         sessionsStr += (formatStr % (s.date.date(), s.getId(), s.reservation.getTotalDays(),
+            #                                      s.pi.getName(), s.user.getName()))
+            # sessionsStr += "</ul>"
+        # sessionsStr += "</ul>"
+        sessionsStr += "<h4>Summary</h4><ul>"
+        for piName, total in piDict.items():
+            sessionsStr += "<li>%s   %s</li>" % (piName, total)
         sessionsStr += "</ul>"
 
         info = OrderedDict()
@@ -218,9 +272,10 @@ def getInfoFromNationals(reservations, sessions):
         info['PI'] = '%s </br></br> %s' % (o.getPi(), o.getPiEmail())
         info['Invoice Address'] = o.getInvoiceAddress()
         info['Invoice Reference'] = o.getInvoiceReference()
+        info[''] = '<footer></footer>'
 
         statsDict['days'] += days
-        statsDict['sessions'] += len(sessionsDict)
+        statsDict['sessions'] += totalSessions
         statsDict['cost'] += cost
         infoDict[cemCode] = info
 
@@ -268,21 +323,19 @@ def getInfoFromInternal(reservations, sessions, group):
         rDict[piKey].append(r)
 
     for piKey, reservations in rDict.iteritems():
-        # TODO: Check if we can grab the session id
-        #s = r.session
         u = r.user
-
-        #sessionId = s.getId() if s is not None else ''
-
         days = 0
         sessionsStr = "<ul>"
-        for r in reservations:
-            formatStr = '<li>%s %s (%d) <ul><li>User: %s</li></ul></li>'
-            sessionsStr += (formatStr % (r.beginDate().date(),
-                                         r.resource.get(),
-                                         r.getTotalDays(),
-                                         r.user.getFullName()))
-            days += r.getTotalDays()
+        for microscope in MICROSCOPES:
+            sessionsStr += "<li>%s<ul>" % microscope
+            for r in reservations:
+                if microscope == r.resource.get():
+                    formatStr = '<li>%s (%d) %s</li>'
+                    sessionsStr += (formatStr % (r.beginDate().date(),
+                                                 r.getTotalDays(),
+                                                 r.user.getFullName()))
+                    days += r.getTotalDays()
+            sessionsStr += "</ul>"
         sessionsStr += "</ul>"
 
         info = OrderedDict()
@@ -296,6 +349,7 @@ def getInfoFromInternal(reservations, sessions, group):
         info['Duration (days)'] = days
         info['Hours allocated'] = days * 24
         info['Amount (SEK)'] = cost
+        info[''] = '<footer></footer>'
 
         statsDict['days'] += days
         statsDict['sessions'] += len(reservations)
@@ -343,18 +397,18 @@ if __name__ == "__main__":
 
         sessions = data.getSessions()
 
+        totalCount = {}
+        downDict = {'days': 0, 'sessions': 0}
+        for r in reservations:
+            if r.isDowntime():
+                downDict['sessions'] += 1
+                downDict['days'] += r.getTotalDays()
+
+        allStats['DOWNTIME'] = downDict
+
         # Generate invoices for national facility projects
         allDict[NATIONAL], allStats[NATIONAL] = getInfoFromNationals(reservations, sessions)
 
-        totalCount = {}
-        MAINTENANCE = 'MAINTENANCE'
-        DOWNTIME = 'DOWNTIME'
-        for group in [DOWNTIME, MAINTENANCE]:
-            allStats[group] = {'days': 0, 'count': 0}
-
-        # Generate invoices for dbb projects
-        #allDict[DBB], allStats[DBB] = getInfoFromInternal(reservations, sessions, group='dbb')
-        #
         # # Generate invoices for dbb projects
         allDict[DBB], allStats[DBB] = getInfoFromInternal(reservations, sessions, group=['dbb', 'sll'])
         #
@@ -366,16 +420,26 @@ if __name__ == "__main__":
                 generateInvoice(statDict, name, allStats[name])
                 generateInvoiceCsv(statDict, name, allStats[name])
         else:
+            # ======= Invoiced PIs =======
+            print("Invoiced PIs: ")
+            piList = []
+            for name, statDict in allDict.iteritems():
+                for d in statDict.values():
+                    if 'PI' in d:
+                        #print(d['PI'])
+                        piList.append(d['PI'])
+            print("Total PIs: %s" % len(piList))
+
             # ======= Total distribution of projects ==================
             total = 0
             for name, statDict in allStats.iteritems():
                 n = statDict['days']
-                if 'count' in statDict:
-                    count = statDict['count']
+                if 'sessions' in statDict:
+                    count = statDict['sessions']
                 else:
                     count = len(allDict[name])
 
-                print "%s:\t%s:\tdays: %s" % (name, count, n)
+                print "%s:\tsessions: %s:\tdays: %s" % (name, count, n)
                 total += n
 
             print "Total:\t%s" % total
@@ -387,15 +451,19 @@ if __name__ == "__main__":
                          ('uppsala', ['uppsala']),
                          ('gothenburg', ['gothenburg', u'göteborg']),
                          ('linkoping', [u'linköping']),
-                         ('lund', ['lund'])
+                         ('lund', ['lund']),
+                         ('umea', ['umea', u'umeå'])
                          ]
 
             def _getLocation(address):
-                addressLower = address.lower()
-                for locName, locAliases in locations:
-                    for loc in locAliases:
-                        if loc in addressLower:
-                            return locName
+                try:
+                    addressLower = address.lower()
+                    for locName, locAliases in locations:
+                        for loc in locAliases:
+                            if loc in addressLower:
+                                return locName
+                except:
+                    pass
                 return None
 
             locationCount = OrderedDict()
@@ -404,18 +472,20 @@ if __name__ == "__main__":
 
             # Geographical distribution of national projects
             for info in allDict[NATIONAL].values():
-                loc = _getLocation(info['Referens'])
+                addressValue = info['Invoice Address']
+                loc = _getLocation(addressValue)
                 if loc:
-                    locationCount[loc] += 1
+                    locationCount[loc] += info['Count (days)']
                 else:
-                    print "Unknown location: ", info['Referens']
+                    print("Unknown location: %s" % addressValue)
                     #sys.exit(1)
 
             print locationCount
 
             # ========== Check wrong CEM bookings =============
-            for info in allDict[FAC].values():
-                codeLower = info['Project Code']
+            # for info in allDict[FAC].values():
+            #     pwutils.prettyDict(info)
+                # codeLower = info['Project Code']
 
     else:
         print "No reservation found. "

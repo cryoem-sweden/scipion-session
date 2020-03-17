@@ -29,8 +29,8 @@ if __name__ == "__main__":
     reservations = data.getReservations()
 
     def _filterReservation(r):
-        isCEM = (r.isNationalFacility())
-        return r.resource.get() in MICROSCOPES # and isCEM
+        isCEM = (r.isNationalFacility() and r.getCemCode() == 'cem00262')
+        return r.resource.get() in MICROSCOPES and isCEM
 
     reservations = filter(_filterReservation, reservations)
     stats = {TITAN: {'cem': 0, 'fac': 0, 'sll': 0, 'dbb': 0, 'mmk': 0},

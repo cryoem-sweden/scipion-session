@@ -35,17 +35,17 @@ with open(accountsFn, 'w') as ordersFile:
     print "Writing orders JSON to file: %s" % accountsFn
     json.dump(accountJson, ordersFile, indent=2)
 
-piList = loadAccountsFromJson(accountJson, isPi=False)#, university='SU')
+piList = loadAccountsFromJson(accountJson, isPi=True)#, university='SU')
 
-headers = ["Name", "Email", "Univ.", "PI", "Invoice REF"]
-row_format = u"{:<30}{:<35}{:<5}{:<5}{:<20}"
+headers = ["First Name", "Last Name", "Email", "Univ.", "PI", "Invoice REF"]
+row_format = u"{:<15}{:<15}{:<35}{:<5}{:<5}{:<20}"
 print row_format.format(*headers)
 
 for u in piList:
-    row = ("%s %s" % (u['first_name'], u['last_name']),
+    row = [u['first_name'], u['last_name'],
            u['email'], u['university'], u['pi'], u['invoice_ref']
-           )
-    print(row_format.format(*row))
+           ]
+    print(row_format.format(*['"%s",' % r for r in row]))
 
 print "Accounts: ", len(piList)
 
