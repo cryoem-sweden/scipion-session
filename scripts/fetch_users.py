@@ -8,9 +8,8 @@ from config import *
 
 
 if __name__ == "__main__":
-    noInPortal = '--no-portal' in sys.argv
-    noPi = '--no-pi' in sys.argv
-    noSe = '--no-se' in sys.argv
+    showAll = '--all' in sys.argv
+    csv = '--csv' in sys.argv
 
     data = Data(dataFolder=getDataFile())
     users = data.getUsers()
@@ -24,15 +23,18 @@ if __name__ == "__main__":
     def _noSe(u):
         return not u.getEmail().endswith('.se')
 
-    if noInPortal:
-        users = filter(_noInPortal, users)
-
-    if noPi:
-        users = filter(_noPiInPortal, users)
-
-    if noSe:
-        users = filter(_noSe, users)
-
     users.sort(key=lambda u: u.getFullName())
-    #printUsers(users)
+
+    if showAll:
+        printUsers(users, csv=csv)
+    else:
+        print("\n\n>>> NOT IN PORTAL >>>")
+        printUsers(filter(_noInPortal, users), csv=csv)
+
+        print("\n\n>>> PI not IN PORTAL >>>")
+        printUsers(filter(_noPiInPortal, users), csv=csv)
+
+        print("\n\n>>> NOT .se EMAIL >>>")
+        printUsers(filter(_noSe, users), csv=csv)
+
     print("Total: ", len(users))

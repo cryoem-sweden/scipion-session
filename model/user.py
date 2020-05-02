@@ -136,10 +136,13 @@ def loadUsersFromJson(usersJson):
     return [userFromBookedJson(u) for u in usersJson if not _specialUser(u)]
 
 
-def printUsers(users):
+def printUsers(users, csv=False):
     """ Print the list of users. """
     headers = ["Name", "Email", "Phone", "Group", "In Portal", "PI"]
-    row_format = u"{:<30}{:<35}{:<15}{:<15}{:<10}{:<10}"
+    if csv:
+        row_format = u'"{:<30}","{:<35}","{:<15}", "{:<15}", "{:<10}", "{:<10}"'
+    else:
+        row_format = u'{:<30}{:<35}{:<15}{:<15}{:<10}{:<10}'
 
     print(row_format.format(*headers))
 

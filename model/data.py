@@ -125,13 +125,13 @@ class Data:
             else:
                 u.setPiAccount(piA)
 
-        if noInPortal:
-            print("\n>>>> Users NOT in PORTAL: ")
-            printUsers(noInPortal)
+        #if noInPortal:
+        #    print("\n>>>> Users NOT in PORTAL: ")
+        #    printUsers(noInPortal)
 
-        if noPi:
-            print("\n>>>> Users NO PI: ")
-            printUsers(noPi)
+        #if noPi:
+        #    print("\n>>>> Users NO PI: ")
+        #    printUsers(noPi)
 
     def getUsers(self):
         return self._users
