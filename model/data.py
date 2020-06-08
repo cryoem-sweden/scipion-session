@@ -86,9 +86,10 @@ class Data:
         print("Loading users......")
 
         bookedUserFn = getDataFile(BOOKED_LOGIN_USER)
+        bookedUsersListFn = getDataFile(BOOKED_USERS_LIST)
+        
         try:
             uJson = self.bMan.fetchUsersJson(bookedUserFn)
-            bookedUsersListFn = getDataFile(BOOKED_USERS_LIST)
             with open(bookedUsersListFn, 'w') as usersFile:
                 json.dump(uJson, usersFile, indent=2)
             self._users = loadUsersFromJson(uJson)
