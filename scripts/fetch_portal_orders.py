@@ -98,13 +98,18 @@ if not  args.detailsCem:
             raise Exception("Invalid value for sort: %s" % sort)
         orders = sorted(orders, key=keyFunc)
 
-    ordersDetailed = []
+    ordersDetailed = {'orders': [], 'forms': {}}
+
 
     for o in orders:
         print("%s: %s" % (o.getId(), o.getTitle()))
         if args.detailed:  
             detailsJson = pMan.fetchOrderDetailsJson(o.getId())
-            ordersDetailed.append(detailsJson)
+            formId = o.form['iuid']
+            if formId not in ordersDetailed['forms']:
+                ordersDetailed['forms'][formId] = pMan.fetchFormDetailsJson()
+
+            ordersDetailed['orders'].append(detailsJson)
 
     if ordersDetailed:
         writeOrders(ordersDetailed, ordersFn.replace('.json', '-detailed.json'))

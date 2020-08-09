@@ -56,6 +56,10 @@ class PortalManager:
         #orderUrl = orderJson['links']['api']['href']
         #return self._fetchJsonFromUrl(orderUrl)
 
+    def fetchFormDetailsJson(self, formId):
+        """ Return  the JSON data about a given form. """
+        return self._fetchJsonFromUrlSuffix('form/%s' % formId)
+
     def fetchAccountsJson(self):
         """ Retrieve the users list from the portal system. """
         return self._fetchJsonFromUrlSuffix('accounts')
