@@ -185,6 +185,10 @@ def getInfoFromNationals(reservations, sessions):
 
     for cemCode, cemReservations in cemDict.iteritems():
         o = data.getOrder(cemCode)
+        if o is None:
+            print("Invalid order code: %s, got None...SKIPPING" % cemCode)
+            continue
+
         o.fields = data.getOrderDetails(cemCode)['fields']
 
         cemSessions = []

@@ -43,6 +43,9 @@ _addArg("--details", type=str, default='',
         dest='detailsCem', metavar='CEM',
         help="Provide the CEM code to print details of this order")
 
+_addArg("--detailed", action='store_true',
+        help="If you provide this option the detailed list will be written")
+
 _addArg("--sort", type=str, default='cem',
         dest='sort', metavar='SORT',
         help="Sort criteria. (cem, date)")
@@ -61,14 +64,18 @@ apiJsonFile = 'data/%s' % PORTAL_API
 
 pMan = PortalManager(apiJsonFile)
 
+
+def writeOrders(ordersJson, fn):
+    with open(fn, 'w') as ordersFile:
+        print("Writing orders JSON to file: ", fn)
+        json.dump(ordersJson, ordersFile, indent=2)
+
+
 if not  args.detailsCem:
     # Fetch orders from the Portal and write to a json file
     ordersJson = pMan.fetchOrdersJson()
     ordersFn = 'data/%s' % PORTAL_ORDERS
-    ordersFile = open(ordersFn, 'w')
-    print("Writing orders JSON to file: %s" % ordersFn)
-    json.dump(ordersJson, ordersFile, indent=2)
-    ordersFile.close()
+    writeOrders(ordersJson, ordersFn)
     orders = loadOrdersFromJson(ordersJson)
 
     filter = args.filter
@@ -91,16 +98,16 @@ if not  args.detailsCem:
             raise Exception("Invalid value for sort: %s" % sort)
         orders = sorted(orders, key=keyFunc)
 
+    ordersDetailed = []
+
     for o in orders:
         print("%s: %s" % (o.getId(), o.getTitle()))
-        # detailsJson = pMan.fetchOrderDetailsJson(o.getId())
-        # try:
-        #     piList = detailsJson['fields']['pi_list']
-        #     for name, email in piList:
-        #         print("   %s %s" % (name, email))
-        # except:
-        #     print("No pi_list on %s, url: %s"
-        #           % (o.getId(), detailsJson['id']))
+        if args.detailed:  
+            detailsJson = pMan.fetchOrderDetailsJson(o.getId())
+            ordersDetailed.append(detailsJson)
+
+    if ordersDetailed:
+        writeOrders(ordersDetailed, ordersFn.replace('.json', '-detailed.json')
 
     print("Orders: ", len(orders))
 

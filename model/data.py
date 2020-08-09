@@ -262,7 +262,6 @@ class Data:
 
         return sessions
 
-
     def getDataFile(self, filename):
         return os.path.join(self.dataFolder, filename)
 
