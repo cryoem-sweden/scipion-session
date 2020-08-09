@@ -107,7 +107,7 @@ if not  args.detailsCem:
             ordersDetailed.append(detailsJson)
 
     if ordersDetailed:
-        writeOrders(ordersDetailed, ordersFn.replace('.json', '-detailed.json')
+        writeOrders(ordersDetailed, ordersFn.replace('.json', '-detailed.json'))
 
     print("Orders: ", len(orders))
 
