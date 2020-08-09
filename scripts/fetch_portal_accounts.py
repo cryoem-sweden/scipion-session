@@ -32,14 +32,14 @@ accountJson = pMan.fetchAccountsJson()
 # Fetch orders from the Portal and write to a json file
 accountsFn = 'data/%s' % PORTAL_ACCOUNTS
 with open(accountsFn, 'w') as ordersFile:
-    print "Writing orders JSON to file: %s" % accountsFn
+    print("Writing orders JSON to file: %s" % accountsFn)
     json.dump(accountJson, ordersFile, indent=2)
 
 piList = loadAccountsFromJson(accountJson, isPi=True)#, university='SU')
 
 headers = ["First Name", "Last Name", "Email", "Univ.", "PI", "Invoice REF"]
 row_format = u"{:<15}{:<15}{:<35}{:<5}{:<5}{:<20}"
-print row_format.format(*headers)
+print(row_format.format(*headers))
 
 for u in piList:
     row = [u['first_name'], u['last_name'],
@@ -47,7 +47,7 @@ for u in piList:
            ]
     print(row_format.format(*['"%s",' % r for r in row]))
 
-print "Accounts: ", len(piList)
+print("Accounts: ", len(piList))
 
 
 t.toc()

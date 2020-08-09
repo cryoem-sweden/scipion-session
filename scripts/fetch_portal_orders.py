@@ -43,9 +43,6 @@ _addArg("--details", type=str, default='',
         dest='detailsCem', metavar='CEM',
         help="Provide the CEM code to print details of this order")
 
-_addArg("--list", action="store_true",
-        help="List current orders")
-
 _addArg("--sort", type=str, default='cem',
         dest='sort', metavar='SORT',
         help="Sort criteria. (cem, date)")
@@ -64,7 +61,7 @@ apiJsonFile = 'data/%s' % PORTAL_API
 
 pMan = PortalManager(apiJsonFile)
 
-if args.list:
+if not  args.detailsCem:
     # Fetch orders from the Portal and write to a json file
     ordersJson = pMan.fetchOrdersJson()
     ordersFn = 'data/%s' % PORTAL_ORDERS
@@ -107,7 +104,7 @@ if args.list:
 
     print("Orders: ", len(orders))
 
-elif args.detailsCem:
+else:
     orderId = args.detailsCem
     print("Retrieving details for first order: ", orderId)
     orderDetailsJson = pMan.fetchOrderDetailsJson(orderId)
