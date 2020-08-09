@@ -107,7 +107,7 @@ if not  args.detailsCem:
             detailsJson = pMan.fetchOrderDetailsJson(o.getId())
             formId = o.form['iuid']
             if formId not in ordersDetailed['forms']:
-                ordersDetailed['forms'][formId] = pMan.fetchFormDetailsJson()
+                ordersDetailed['forms'][formId] = pMan.fetchFormDetailsJson(formId)
 
             ordersDetailed['orders'].append(detailsJson)
 
