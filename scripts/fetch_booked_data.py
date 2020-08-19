@@ -1,5 +1,5 @@
 
-import sy   s
+import sys
 import json
 import datetime as dt
 
@@ -43,6 +43,6 @@ if __name__ == "__main__":
 
     outputFn =  'data/booked-data.json'
 
-    with  open(outputFn) as f:
+    with  open(outputFn, 'w') as f:
         print("Writing reservations JSON to: %s" % outputFn)
-        json.dump(reservationList, f)
+        json.dump(reservationList, f, indent=2)
