@@ -46,7 +46,7 @@ class Data:
             self.fromDate = self.date - week
             self.toDate = self.date + week
 
-        print "Using day: ", self.date
+        print("Using day: ", self.date)
         self.pMan = PortalManager(self.getDataFile(PORTAL_API))
         self.sMan = SessionManager(self.getDataFile(SESSIONS_FILE))
         self.bMan = BookingManager()
@@ -202,7 +202,7 @@ class Data:
             # If there are more than one reservation (probably some overlapping
             # in the booking system), take the first one that starts today
             r = reservations[0]
-            print "n: ", n
+            print("n: ", n)
             if n > 1:
                 for tr in reservations:
                     if tr.startsToday():
@@ -211,7 +211,7 @@ class Data:
 
             self.reservation = r
         else:
-            print "No reservation found today for '%s'" % self.microscope
+            print("No reservation found today for '%s'" % self.microscope)
 
     def getSessions(self):
         # Let's try to remove duplicated sessions here

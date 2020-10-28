@@ -111,7 +111,7 @@ def loadReservations(userJsonFn, reservationsJsonFn, fromDate, toDate,
     if fetchData:
         try:
             bMan = BookingManager()
-            print "Loading reservations from booking system..."
+            print("Loading reservations from booking system...")
 
             t = pwutis.Timer()
             t.tic()
@@ -215,7 +215,7 @@ def printReservations(reservations):
 
         begin = r.beginDate()
         if begin.month != lastMonth:
-            print "Month: ", begin.month
+            print("Month: ", begin.month)
             lastMonth = begin.month
 
         label = ''

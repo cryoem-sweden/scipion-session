@@ -34,12 +34,12 @@ import pyworkflow.utils as pwutils
 
 
 def usage(error):
-    print """
+    print("""
     ERROR: %s
     
     Usage: scipion python new-session-aarhus.py workflow.json PROJECT_FOLDER
 
-    """ % error
+    """ % error)
     sys.exit(1)    
 
 n = len(sys.argv)
@@ -54,7 +54,7 @@ jsonFn = os.path.abspath(sys.argv[1])
 now = datetime.now()
 projName = "scipion-%s" % now.strftime('%Y%m%d-%H%M%S')
 
-print "Creating project: ", projName
+print("Creating project: ", projName)
  
 # Create a new project
 manager = Manager()

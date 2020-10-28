@@ -73,9 +73,9 @@ class OptionChooser(tk.Frame):
 
 
 def onSelection(chooser):
-    print "Selection changed on %s" % chooser
-    print "     index: ", chooser.getSelectedIndex()
-    print "      text: ", chooser.getSelectedText()
+    print("Selection changed on %s" % chooser)
+    print("     index: ", chooser.getSelectedIndex())
+    print("      text: ", chooser.getSelectedText())
 
 
 if __name__ == "__main__":

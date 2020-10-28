@@ -15,8 +15,8 @@ class UString(String):
                 v = unicode(value, encoding='utf-8', errors='ignore')
             else:
                 v = str(value)
-        except Exception, ex:
-            print value, type(value)
+        except Exception as ex:
+            print(value, type(value))
             raise
 
         return v
@@ -60,8 +60,8 @@ class DataObject(OrderedObject):
         for key in self.ATTR_STR:
             try:
                 setattr(self, key, UString(kwargs.get(key, '')))
-            except Exception, ex:
-                print "Error trying to set value for '%s' " % key
+            except Exception as ex:
+                print("Error trying to set value for '%s' " % key)
 
         for key in self.ATTR_RAW:
             setattr(self, key, kwargs.get(key, None))
