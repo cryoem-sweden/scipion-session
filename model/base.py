@@ -9,13 +9,8 @@ import pyworkflow.utils as pwutils
 class UString(String):
     def _convertValue(self, value):
         try:
-            if isinstance(value, unicode):
-                v = value
-            elif isinstance(value, str):
-                v = unicode(value, encoding='utf-8', errors='ignore')
-            else:
-                v = str(value)
-        except Exception as ex:
+            v = str(value)
+        except Exception:
             print(value, type(value))
             raise
 

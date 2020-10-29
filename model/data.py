@@ -7,18 +7,19 @@ import sys
 import codecs
 from collections import OrderedDict
 
-import pyworkflow.em as em
+import pwem
 import pyworkflow.utils as pwutils
 from pyworkflow.project import Manager
 
 from config import *
-from base import Person
-from order import loadOrders, loadAccountsFromJson, loadActiveBags
-from reservation import loadReservations, printReservations
-from session import SessionManager, Session, printSessions
-from user import loadUsersFromJsonFile, loadUsersFromJson, printUsers
-from datasource.portal import PortalManager
-from datasource.booking import BookingManager
+from model.base import Person
+
+from model.order import loadOrders, loadAccountsFromJson, loadActiveBags
+from model.reservation import loadReservations, printReservations
+from model.session import SessionManager, Session, printSessions
+from model.user import loadUsersFromJsonFile, loadUsersFromJson, printUsers
+from model.datasource.portal import PortalManager
+from model.datasource.booking import BookingManager
 
 PROJ_NATIONAL = 0
 PROJ_INTERNAL = 1
@@ -47,13 +48,6 @@ class Data:
             self.toDate = self.date + week
 
         print("Using day: ", self.date)
-        self.pMan = PortalManager(self.getDataFile(PORTAL_API))
-        self.sMan = SessionManager(self.getDataFile(SESSIONS_FILE))
-        self.bMan = BookingManager()
-
-        self._loadUsers()
-        self._loadOrders()
-        self._loadReservations()
 
         # Keep a configuration of user, project-type and project
         self.user = None
@@ -286,7 +280,7 @@ class Data:
             return r.startsOnDay(date) and (resource is None or
                                             r.resource == resource)
 
-        return self.findReservations(_active if status is 'active' else _starts)
+        return self.findReservations(_active if status == 'active' else _starts)
 
     def findReservations(self, conditionFunc):
         """ Find reservations that satisfies the conditionFunc.
@@ -419,7 +413,7 @@ class Data:
         # else:
         filesPath = session.getPath()
 
-        protImport = project.newProtocol(em.ProtImportMovies,
+        protImport = project.newProtocol(pwem.ProtImportMovies,
                                          objLabel='Import movies',
                                          filesPath=filesPath,
                                          filesPattern=pattern,
@@ -442,7 +436,7 @@ class Data:
         else:
             publish = ''
 
-        protMonitor = project.newProtocol(em.ProtMonitorSummary,
+        protMonitor = project.newProtocol(pwem.ProtMonitorSummary,
                                           objLabel='Summary Monitor',
                                           doMail=doMail,
                                           emailFrom=smtpFrom,
@@ -577,9 +571,7 @@ class Data:
             prot2D.inputParticles.setExtended('outputParticles')
             _saveProtocol(prot2D, movies=False)
 
-            from pyworkflow.em import ProtMonitor2dStreamer
-
-            protStreamer = _newProtocol(ProtMonitor2dStreamer,
+            protStreamer = _newProtocol(pwem.ProtMonitor2dStreamer,
                                         objLabel='scipion - 2d streamer',
                                         batchSize=20000)
 

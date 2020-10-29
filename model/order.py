@@ -1,7 +1,7 @@
 
 import json
 
-from base import DataObject
+from model.base import DataObject
 
 
 class Order(DataObject):

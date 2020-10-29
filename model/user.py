@@ -5,7 +5,7 @@ that can book the microscope and can start a session.
 from __future__ import print_function
 import json
 
-from base import DataObject
+from model.base import DataObject
 from config import STAFF
 
 

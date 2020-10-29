@@ -4,16 +4,14 @@ This module contains classes and utility functions to deal with users
 that can book the microscope and can start a session.
 """
 
-import os
 import re
 import datetime as dt
 import json
-import requests
 
 import pyworkflow.utils as pwutis
 
-from base import DataObject, parseCsv
-from datasource.booking import BookingManager
+from model.base import DataObject, parseCsv
+from model.datasource.booking import BookingManager
 
 
 CEM_REGEX = re.compile("cem(\d+)")
