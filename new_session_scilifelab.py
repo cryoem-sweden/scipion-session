@@ -45,7 +45,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Query reservations. ")
     add = parser.add_argument  # shortcut
-    add('--microscope', help="Select microscope", default='titan')
+    add('--microscope', help="Select microscope", default='titan-a')
     add('--day', help="Date to check for reservations (Today by default)")
     args = parser.parse_args()
 

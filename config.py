@@ -107,85 +107,37 @@ GROUP_DATA = {
     'sll': 'sll'
 }
 
-STAFF = ['Marta Carroni -- marta.carroni@scilifelab.se',
-         'Julian Conrad -- julian.conrad@scilifelab.se',
-         'Karin Wallden -- karin.wallden@scilifelab.se',
-         'Dustin Morado -- dustin.morado@scilifelab.se']
-
-# Temporary solution while some users are not registered in the Portal
-aa = 'amunts@scilifelab.se'
-el = 'erik.lindahl@scilifelab.se'
-mo = 'martin.ott@dbb.su.se'
-dd = 'ddrew@dbb.su.se'
-gu = 'gunnar@dbb.su.se'
-pa = 'piaa@dbb.su.se'
-pb = 'peterb@dbb.su.se'
-
-PI_MAP = {
-    'axelssonlinnea@live.com': aa,
-    'Linnea.axelsson@scilifelab.se': aa,
-    'vivek.singh@scilifelab.se': aa,
-
-    'bjorn.forsberg@scilifelab.se': el,
-    'marie.lycksell@scilifelab.se': el,
-
-    'andreas.carlstrom@dbb.su.se': mo,
-    'andreascarlstroem@gmail.com': mo,
-    'sorbhi.rathore@dbb.su.se': mo,
-    'mikaela@dbb.su.se': mo,
-
-    'pascal.meier@dbb.su.se': dd,
-    'yurie.chatzikyriakidou@dbb.su.se': dd,
-    'ashutosh.gulati@dbb.su.se': dd,
-    'iven.winkelmann@dbb.su.se': dd,
-
-    'bwiseman11@gmail.com': 'hogbom@dbb.su.se',
-    'markel.martinez@dbb.su.se': 'stenmark@dbb.su.se',
-
-
-    # TODO: Register in the Application Portal!!!
-    'mara.laguna@scilifelab.se': aa,
-    'ane.metola@dbb.su.se': gu,
-    'jonathan.davies@dbb.su.se': gu,
-
-    'luka.bacic@icm.uu.se': 'sebastian.deindl@icm.uu.se',
-
-
-
-    'patrick.cottilli@scilifelab.se': aa,
-    'maximilian.kahle@dbb.su.se': pa,
-    'sylwia.krol@dbb.su.se': pb,
-
-    'soneya.majudar@icm.uu.se': 'suparna.sanyal@icm.uu.se',
-    'alena.stsiapanava@ki.se': 'luca.jovine@ki.se',
-
-    'hognyi.xu@mmk.su.se': 'hognyi.xu@mmk.su.se',
-    'hongyi.xu@mmk.su.se': 'hognyi.xu@mmk.su.se'
-}
-
-
 PROJECT_TYPES = ['National Facility Project',
                  'Internal Project']
 
 # Microscope and camera settings
-TITAN = 'Titan Krios'
+TITAN_A = 'Titan Krios a'
+TITAN_B = 'Titan Krios b'
 TALOS = 'Talos Arctica'
 
-MICROSCOPES = [TITAN, TALOS]
-MICROSCOPES_ALIAS = {'titan': TITAN, 'talos': TALOS}
+MICROSCOPES = [TITAN_A, TITAN_B, TALOS]
+MICROSCOPES_ALIAS = {'titan-a': TITAN_A,
+                     'titan-b': TITAN_B,
+                     'talos': TALOS}
 
 K2 = 'K2'
+K3 = 'K3'
 FALCON3 = 'Falcon3'
+CETA = 'Ceta'
+CETA_D = 'Ceta-D'
+
 CAMERAS = [K2, FALCON3]
 
 MIC_CAMERAS = {
-    TITAN: [K2, FALCON3],
-    TALOS: [FALCON3]
+    TITAN_A: [K3, FALCON3, CETA],
+    TITAN_B: [K3, CETA_D],
+    TALOS: [K2, FALCON3, CETA]
     }
 
 # Configuration dependent on Microscopes
 MICROSCOPES_SETTINGS = {
-    TITAN: {CS: 2.7, VOLTAGE: 300, GPU: [0]},
+    TITAN_A: {CS: 2.7, VOLTAGE: 300, GPU: [0]},
+    TITAN_A: {CS: 2.7, VOLTAGE: 300, GPU: [0]},
     TALOS: {CS: 2.7, VOLTAGE: 200, GPU: [1]}
 }
 
@@ -201,11 +153,14 @@ CAMERA_SETTINGS = {
 
 # Configuration dependent on Microscope-Camera pair
 MIC_CAMERAS_SETTINGS = {
-    TITAN: {
-        K2: {
+    TITAN_A: {
+        K3: {
             MOVIES_FOLDER: DATA_FOLDER
         },
         FALCON3: {
+            MOVIES_FOLDER: DATA_FOLDER
+        },
+        CETA: {
             MOVIES_FOLDER: DATA_FOLDER
         }
     },
@@ -217,46 +172,9 @@ MIC_CAMERAS_SETTINGS = {
 }
 
 
-# Some data files under the folder 'data'
-PORTAL_API = 'portal-api.json'
-PORTAL_ORDERS = 'portal-orders.json'
-PORTAL_ACCOUNTS = 'portal-accounts.json'
-
-BOOKED_LOGIN_USER = 'booked-user.json'
-BOOKED_USERS_LIST = 'booked-users-list.json'
-BOOKED_RESERVATIONS = 'booked-reservations.json'
-
-# Small json file with PIs information of the internal users
-# in DBB and SciLifeLab
-LABS_FILE = 'labs.json'
-
 # The sqlite file where the sessions are stored
 SESSIONS_FILE = 'sessions.sqlite'
 
-
-"""
-
-# Data folder (can be changed per microscope)
-
-# Pattern to be used when importing movies
-PATTERN = Images-Disc*/GridSquare_*/Data/FoilHole_*frames.mrc
-
-
-# ------- MICROSCOPES ----------------
-[MICROSCOPE:Talos]
-#DATA_FOLDER = /data/talos-falcon2
-CS = 2.7
-MAG = 72000
-
-[MICROSCOPE:Krios-K2]
-PATTERN = k2_frames/Images-Disc*/GridSquare_*/Data/FoilHole_*frames.mrc
-CS = 2.7
-SCIPION_PROJECT = ${PROJECT_ID}_scipion
-
-[MICROSCOPE:Krios-Falcon2]
-#DATA_FOLDER = /data/krios-falcon2
-CS = 2.7
-"""
 
 import os
 # Assume the data folder is in the same place as this script

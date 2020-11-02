@@ -267,19 +267,6 @@ class BoxWizardView(tk.Frame):
             if cam is None:
                 return "Select Camera"
 
-            # proj = self._projectChooser.getSelectedIndex()
-            # if proj is None:
-            #     return "Select Project"
-            #
-            # if proj == PROJ_NATIONAL:
-            #     if self._cemCombo.var.get() == LABEL_SELECT_CEM:
-            #         return LABEL_SELECT_CEM
-            #     return checkPiAndUser() or checkOperator()
-            # elif proj == PROJ_INTERNAL:
-            #     return checkPiAndUser()
-            # else:
-            #     return checkOperator()
-
             return "TODO"
 
             return None
@@ -297,6 +284,19 @@ class BoxWizardView(tk.Frame):
             btn = getattr(self, '_newSessionBtn', None)
             if btn is not None:
                 btn.config(state='disabled' if action else 'normal')
+
+            resourceId = self._micChooser.getSelectedIndex() + 1
+            if resourceId in self._bookings:
+                b = self._bookings[resourceId]
+                values = {'CEM': b['application_label'],
+                          'Owner': b['owner']['name'],
+                          'Creator': b['creator']['name']
+                          }
+            else:
+                values = {}
+
+            for k, v in self._textVars.items():
+                v.set(values.get(k, '-'))
 
         def _showCameraOptions(chooser):
             """ Show the correct camera options depending on the
@@ -330,45 +330,6 @@ class BoxWizardView(tk.Frame):
             """ Return the account email assuming the format name -- email. """
             return combo.var.get().split('--')[1].strip()
 
-        # def _onChangeProjectType(chooser):
-        #     piConfig = {}
-        #     cemConfig = {'selection': LABEL_NONE}
-        #
-        #     i = chooser.getSelectedIndex()
-        #     # 0 is National, 1 is Internal, 2 Facility
-        #     if i == PROJ_NATIONAL:
-        #         piConfig = {'selection': 'Select CEM code first'}
-        #         cemConfig = {'selection': LABEL_SELECT_CEM,
-        #                      'values': self._bagsDict.keys()}
-        #     elif i == PROJ_INTERNAL:
-        #         # List of internal PIs of SU
-        #         piFilter = lambda a: a['pi'] and a['university'] == 'SU'
-        #         piConfig = {'selection': LABEL_SELECT_PI,
-        #                     'values': _getAccountList(piFilter)}
-        #         _configCombo(self._operatorCombo, values=None)
-        #     elif i == PROJ_FACILITY:
-        #         piConfig['selection'] = LABEL_NONE
-        #     else:
-        #         raise Exception('Invalid option for project type %s' % i)
-        #
-        #     _configCombo(self._piCombo, **piConfig)
-        #     _configCombo(self._cemCombo, **cemConfig)
-        #     _configCombo(self._userCombo)
-        #     _checkSessionAction()
-        #
-        # def _onSelectCEM(*args):
-        #     bag = self._bagsDict.get(self._cemCombo.var.get(), None)
-        #     _configCombo(self._piCombo,
-        #                  selection=LABEL_SELECT_PI,
-        #                  values=['%s -- %s' % tuple(pi) for pi in bag.piList])
-        #     _checkSessionAction()
-        #
-        # def _onSelectPI(*args):
-        #     piEmail = _getEmailFromCombo(self._piCombo)
-        #     userFilter = lambda a: a['invoice_ref'] == piEmail
-        #     _configCombo(self._userCombo, values=_getAccountList(userFilter))
-        #     _checkSessionAction()
-
         def _onChange(*args):
             if hasattr(self, '_sessionLabel'):
                 _checkSessionAction()
@@ -381,7 +342,7 @@ class BoxWizardView(tk.Frame):
         f1.addOption('Krios β', self.data.getResourceFile("titan_small.gif"))
         f1.addOption('Talos', self.data.getResourceFile("talos_small.gif"))
         __addLabeledWidget("Microscope", f1, bold=True)
-        self._micOrder = {TITAN: 0, TALOS: 1}
+        self._micOrder = {TITAN_A: 0, TITAN_B: 0, TALOS: 2}
         self._micChooser = f1
         self._camChoosers = []
 
@@ -394,52 +355,46 @@ class BoxWizardView(tk.Frame):
             oc.onSelectionChanged(_onChange)
             return oc
 
-        f2 = _createChooser('K3', 'Falcon 3', 'Zeta')
+        camChoosers = [_createChooser(*MIC_CAMERAS[mic]) for mic in MICROSCOPES]
+
+        f2 = camChoosers[0]
         self._camRow = self._lastRow
         __addLabeledWidget("Camera", f2)
 
-        _createChooser('K3', 'Zeta')
-        _createChooser('K2', 'Falcon 3', 'Zeta')
+        # _createChooser(*MIC_CAMERAS[TITAN_A])
+        # _createChooser(*MIC_CAMERAS[TITAN_A])
 
         # --------- Load some data ---------------
-        # self._bagsDict = OrderedDict([(b.getId().upper(), b)
-        #                               for b in self.data.getActiveBags()])
-        #
-        # self._accounts = self.data.getAccountsFromPortal()
+        from emhub.client import DataClient
+        from emhub.utils import datetime_to_isoformat
 
-        # --------- Project block ----------------
-        # f3 = OptionChooser(frame, bg='white',
-        #                    optionWidth=134)
-        # f3.onSelectionChanged(_onChangeProjectType)
-        # f3.addOption('National')
-        # f3.addOption('Internal')
-        # f3.addOption('Facility')
-        # self._projectChooser = f3
-        # __addLabeledWidget("Project", f3, pady=(EXTRA_PAD, 0), bold=True)
+        dc = DataClient()
 
-        # self._cemCombo = __createCombobox([], callback=_onSelectCEM, width=11)
+        dc.login('delarosatrevin@scilifelab.se', 'delarosatrevin@scilifelab.se')
+
+        start = datetime_to_isoformat(self.data.date)
+        end = datetime_to_isoformat(self.data.date)
+        dc.request('get_bookings_range',
+                   jsonData={'start': start, 'end': end})
+        self._bookings = {b['resource']['id']: b for b in dc.r.json()
+                          if b['type'] == 'booking'}
+        print(dc.json())
+
+        dc.logout()
+
+        self._textVars = {}
+
         def _addLabeledText(label, text):
-            __addLabeledWidget(label, _createLabel(text), bold=True)
+            var = tk.StringVar()
+            var.set(text)
+            labelWidget = _createLabel(text)
+            labelWidget.config(textvariable=var)
+            self._textVars[label] = var
+            __addLabeledWidget(label, labelWidget, bold=True)
 
-
-        cemText = 'To be defined'
-
-
-        # self._piCombo = __createCombobox([], callback=_onSelectPI)
-        piText = 'Paco Perez'
-        self._booking = {
-            'cem': 'To be found...',
-            'pi': 'Paco Perez',
-            'user': 'Juan Garcia',
-            'operator': 'Marta Carroni'
-        }
-
-        b = self._booking
-
-        _addLabeledText("CEM", b['cem'])
-        _addLabeledText("PI", b['pi'])
-        _addLabeledText("User", b['user'])
-        _addLabeledText("Operator", b['operator'])
+        _addLabeledText("CEM", '')
+        _addLabeledText("Owner", '')
+        _addLabeledText("Creator", '')
 
         f4 = OptionChooser(frame, bg='white', optionWidth=200)
         f4.addOption('Scipion', self.data.getResourceFile("scipion_logo.gif"))
