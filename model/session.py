@@ -3,6 +3,7 @@ import os
 
 from pyworkflow.object import *
 
+from config import *
 from model.base import DataObject, UString, JsonDict, Person
 
 
@@ -34,7 +35,10 @@ class Session(DataObject):
         """ Set the session id based on the group and the counter. """
         g = group.lower()
         idFormat = '%s_%05d' if g.startswith('cem') else '%s%05d'
-        self.sessionId.set(idFormat % (g, int(counter)))
+        sessionId = idFormat % (g, int(counter))
+        self.sessionId.set(sessionId)
+        # Set path based on that ID
+        self.setPath(os.path.join(DEFAULTS[DATA_FOLDER], group[:3], sessionId))
 
     def getId(self):
         return self.sessionId.get()
@@ -111,6 +115,22 @@ class SessionManager:
 
     def getSessions(self):
         return self._sessions
+
+    def createSession(self, group):
+        """ Create a new session for the given group.
+        It will set the session ID and path based on
+        the group, its counter and folder availability.
+        """
+        s = Session()
+        nextId = self.getNextId(group)
+        s.setId(group, counter=nextId)
+
+        # Ensure that the Session folder does not exist
+        while os.path.exists(s.getPath()):
+            nextId += 1
+            s.setId(group, counter=nextId)
+
+        return s
 
     def storeSession(self, session):
         self._sessions.append(session)

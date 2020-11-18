@@ -13,6 +13,7 @@ from pyworkflow.project import Manager
 
 from config import *
 from model.base import Person
+from model.session import Session, printSessions, SessionManager
 
 PROJ_NATIONAL = 0
 PROJ_INTERNAL = 1
@@ -42,6 +43,7 @@ class Data:
 
         print("Using day: ", self.date)
 
+        self.sMan = SessionManager(self.getDataFile(SESSIONS_FILE))
         # Keep a configuration of user, project-type and project
         self.user = None
         self.projectType = None
@@ -129,7 +131,6 @@ class Data:
     def getOrder(self, cemCode):
         return self._ordersDict.get(cemCode.lower(), None)
 
-
     def findReservationFromDate(self, date, resource=None,
                                 status='active'):
         """ Find the reservation of a given date and resource. """
@@ -155,9 +156,6 @@ class Data:
 
         return reservations
 
-    def getActiveBags(self):
-        return loadActiveBags(self.pMan)
-
     # ================== SESSION CREATION METHODS ===============================
     def createSession(self, microscope, camera, projectType,
                       cem=None, pi=None, user=None, operator=None,
@@ -172,14 +170,12 @@ class Data:
         elif projectType == PROJ_FACILITY:
             group = 'fac'
         else:  # projectType == PROJ_INTERNAL:
-            group = 'sll' if 'scilifelab' in pi.email.get() else 'dbb'
+            group = 'dbb'
 
-        session = Session()
-        session.setId(group, counter=self.sMan.getNextId(group))
+        session = self.sMan.createSession(group)
         session.setMicroscopeDict(microscope=microscope, camera=camera)
 
         # Take only the first 3 character for the data folder
-        session.setPath(os.path.join(DEFAULTS[DATA_FOLDER], group[:3], session.getId()))
         if preprocessing == 'Scipion':
             session.setScipionProjectName('%s_scipion_%s'
                                           % (session.getId(),
@@ -241,11 +237,31 @@ class Data:
         return DEFAULTS.get(key, default)
 
     def _createSessionScipionProject(self, session):
+
+        microscope = session.getMicroscope()
+        camera = session.getCamera()
+        path = session.getPath()
+
         manager = Manager()
-        #projectPath = session.getScipionProjectPath()
-        #self._createFolder(projectPath)
         project = manager.createProject(session.getScipionProjectName(),
-                                        location=session.getPath())
+                                        location=path)
+
+        jsonFile = getDataFile('scipion3_krios_f3_workflow.json')
+        project.loadProtocols(jsonFile)
+
+        protocols = project.getRuns(refresh=True)
+        for p in protocols:
+            print(p.getRunName())
+            if p.getClassName() == 'ProtImportMovies':
+                p.setAttributesFromDict({
+                    'filesPath': path,
+                    'filesPattern': CAMERA_SETTINGS[camera][PATTERN]
+                }, setBasic=False)
+                project.saveProtocol(p)
+                print("  -> Updated. ")
+
+        return
+
         self.lastProt = None
 
         smtpServer = self._getConfValue(SMTP_SERVER, '')
