@@ -267,7 +267,24 @@ class BoxWizardView(tk.Frame):
             if cam is None:
                 return "Select Camera"
 
-            return "TODO"
+            resourceId = self._micChooser.getSelectedIndex() + 1
+            if resourceId in self._bookings:
+                b = self._bookings[resourceId]
+                values = {'CEM': b['application_label'],
+                          'Owner': b['owner']['name'],
+                          'Creator': b['creator']['name']
+                          }
+            else:
+                values = {}
+                b = None
+
+            for k, v in self._textVars.items():
+                v.set(values.get(k, '-'))
+
+            self._current_booking = b
+            if b is None:
+                return ("There is no booking for this microscope. "
+                        "Check the booking system. ")
 
             return None
 
@@ -284,19 +301,6 @@ class BoxWizardView(tk.Frame):
             btn = getattr(self, '_newSessionBtn', None)
             if btn is not None:
                 btn.config(state='disabled' if action else 'normal')
-
-            resourceId = self._micChooser.getSelectedIndex() + 1
-            if resourceId in self._bookings:
-                b = self._bookings[resourceId]
-                values = {'CEM': b['application_label'],
-                          'Owner': b['owner']['name'],
-                          'Creator': b['creator']['name']
-                          }
-            else:
-                values = {}
-
-            for k, v in self._textVars.items():
-                v.set(values.get(k, '-'))
 
         def _showCameraOptions(chooser):
             """ Show the correct camera options depending on the
@@ -361,24 +365,37 @@ class BoxWizardView(tk.Frame):
         self._camRow = self._lastRow
         __addLabeledWidget("Camera", f2)
 
-        # _createChooser(*MIC_CAMERAS[TITAN_A])
-        # _createChooser(*MIC_CAMERAS[TITAN_A])
-
         # --------- Load some data ---------------
         from emhub.client import DataClient
         from emhub.utils import datetime_to_isoformat
 
-        dc = DataClient()
+        apiJsonFile = getDataFile('api.json')
+        with open(apiJsonFile) as f:
+            apiJson = json.load(f)
 
-        dc.login('delarosatrevin@scilifelab.se', 'delarosatrevin@scilifelab.se')
+        dc = DataClient(apiJson['emhub']['url'])
+        dc.login(apiJson['emhub']['user'],
+                 apiJson['emhub']['password'])
 
-        start = datetime_to_isoformat(self.data.date)
-        end = datetime_to_isoformat(self.data.date)
-        dc.request('get_bookings_range',
-                   jsonData={'start': start, 'end': end})
-        self._bookings = {b['resource']['id']: b for b in dc.r.json()
+        start = datetime_to_isoformat(self.data.date.replace(hour=0))
+        end = datetime_to_isoformat(self.data.date.replace(hour=23, minute=59))
+        r = dc.request('get_bookings_range', jsonData={'start': start, 'end': end})
+        self._bookings = {b['resource']['id']: b for b in r.json()
                           if b['type'] == 'booking'}
-        print(dc.json())
+
+        users = {}
+
+        def get_user(user_id):
+            if user_id not in users:
+                r = dc.request('get_users', jsonData={'condition': 'id=%s' % user_id})
+
+                users[user_id] = r.json()[0]
+
+            return users[user_id]
+
+        for b in self._bookings.values():
+            b['owner'] = get_user(b['owner']['id'])
+            b['creator'] = get_user(b['creator']['id'])
 
         dc.logout()
 
@@ -418,28 +435,6 @@ class BoxWizardView(tk.Frame):
         # Select Scipion as default for pre-processing
         f4.selectIndex(0)
 
-        # r = data.reservation
-        # if r is not None:
-        #     #r.printAll()
-        #     cem = r.getCemCode()
-        #     if cem:
-        #         self._projectChooser.selectIndex(PROJ_NATIONAL)
-        #         if cem.upper() in self._bagsDict:
-        #             self._cemCombo.var.set(cem.upper())
-        #             _onSelectCEM()
-        #     u = r.user
-        #     foundUser = False
-        #     if u is not None:
-        #         for i, operator in enumerate(STAFF):
-        #             if u.email.get() in operator:
-        #                 self._operatorCombo.var.set(operator)
-        #                 _onChange()
-        #                 foundUser = True
-        #         if not foundUser:
-        #             self._projectChooser.selectIndex(PROJ_INTERNAL)
-        #             _onChangeProjectType(self._projectChooser)
-            #_checkSessionAction()
-
     def _isValidUserStr(self, userStr):
         """ Valid user string is:  Name -- email """
         parts = userStr.split('--')
@@ -450,25 +445,28 @@ class BoxWizardView(tk.Frame):
         mic = self._micChooser.getSelectedIndex()
         microscope = MICROSCOPES[mic]
         camera = MIC_CAMERAS[microscope][self._camChoosers[mic].getSelectedIndex()]
+        b = self._current_booking
 
-        # projectType = self._projectChooser.getSelectedIndex()
-        projectType = 0  # FIXME
+        def getPerson(key):
+            p = b[key]
+            return Person(name=p['name'], email=p['email'])
 
-        def _getPersonFromCombo(combo):
-            value = combo.var.get()
-            if self._isValidUserStr(value):
-                name, email = value.split('--')
-                return Person(name=name.strip(), email=email.strip())
-            else:
-                return None
+        # Take only the first part of the application label
+        # (because it can contains the alias in parenthesis)
+        appLabel = b['application_label'].split()[0].lower()
 
-        info = self._sessionInfo = {}
-        session = self.data.createSession(microscope, camera,
-                                          info['projectType'],
-                                          cem=info['cem'],
-                                          pi=_getPersonFromCombo(self._piCombo),
-                                          user=_getPersonFromCombo(self._userCombo),
-                                          operator=_getPersonFromCombo(self._operatorCombo),
+        if appLabel.startswith('cem'):
+            projectType = PROJ_NATIONAL
+        elif appLabel.startswith('dbb'):
+            projectType = PROJ_INTERNAL
+        else:
+            projectType = PROJ_FACILITY
+
+        session = self.data.createSession(microscope, camera, projectType,
+                                          cem=appLabel,
+                                          pi=getPerson('owner'),
+                                          user=getPerson('owner'),
+                                          operator=getPerson('creator'),
                                           preprocessing=self._prepChooser.getSelectedText()
                                           )
         return session
@@ -479,9 +477,8 @@ class BoxWizardView(tk.Frame):
             self.data.storeSession(session)
 
             if session.getScipionProjectName():
-                os.system('%s project %s &'
-                          % (pw.getScipionScript(),
-                             session.getScipionProjectName()))
+                os.system('scipion project %s &'
+                          % session.getScipionProjectName())
 
             self.windows.close()
 

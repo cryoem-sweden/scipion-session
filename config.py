@@ -147,7 +147,7 @@ CAMERA_SETTINGS = {
         PATTERN: "k2_frames/Images-Disc*/GridSquare_*/Data/FoilHole_*.mrc"
     },
     FALCON3: {
-        PATTERN: "k3_frames/Images-Disc*/GridSquare_*/Data/*Fractions.mrc",
+        PATTERN: "falcon3_frames/Images-Disc*/GridSquare_*/Data/*Fractions.mrc",
     }
 }
 
