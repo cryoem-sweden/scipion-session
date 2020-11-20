@@ -37,6 +37,7 @@ import pyworkflow as pw
 import pyworkflow.gui as pwgui
 from pyworkflow.gui.project.base import ProjectBaseWindow
 from pyworkflow.gui.widgets import HotButton, Button
+from pyworkflow.gui.browser import FileBrowserWindow
 from pyworkflow.gui import Message, Icon
 from pyworkflow.project import ProjectSettings
 
@@ -259,12 +260,12 @@ class BoxWizardView(tk.Frame):
                 if not self._isValidUserStr(operator):
                     return "Select operator"
 
-            mic = self._micChooser.getSelectedIndex()
-            if mic is None:
+            micIndex = self._micChooser.getSelectedIndex()
+            if micIndex is None:
                 return "Select Microscope"
 
-            cam = self._camChoosers[mic].getSelectedIndex()
-            if cam is None:
+            camIndex = self._switchCam.widgets[micIndex].getSelectedIndex()
+            if camIndex is None:
                 return "Select Camera"
 
             resourceId = self._micChooser.getSelectedIndex() + 1
@@ -302,41 +303,40 @@ class BoxWizardView(tk.Frame):
             if btn is not None:
                 btn.config(state='disabled' if action else 'normal')
 
+        class Switcher(tk.Frame):
+            def __init__(self, *args, **kwargs):
+                tk.Frame.__init__(self, *args, **kwargs)
+                self._index = -1
+                self.widgets = []
+
+            def add(self, widget):
+                self.widgets.append(widget)
+
+            def set(self, i):
+                if i < 0 or i >= len(self.widgets):
+                    raise Exception("Invalid index")
+
+                if self._index >= 0:
+                    self.widgets[self._index].grid_forget()
+
+                self.widgets[i].grid(row=0, column=0, sticky='news')
+                self._index = i
+
         def _showCameraOptions(chooser):
             """ Show the correct camera options depending on the
             selected microscope. """
-            self._lastIndex = getattr(self, '_lastIndex', None)
-
-            if self._lastIndex is not None:
-                self._camChoosers[self._lastIndex].grid_forget()
-
             i = chooser.getSelectedIndex()
-            camChooser = self._camChoosers[i]
-            camChooser.grid(row=self._camRow, column=1, sticky='nw', pady=5, padx=5)
-            self._lastIndex = i
-
+            self._switchCam.set(i)
             _checkSessionAction()
-
-        def _configCombo(combo, selection='', values=[]):
-            combo.set(selection)
-            if values is not None:
-                combo['values'] = values
-
-        def _getAccountList(filterFunc):
-            """ Return a list of strings name -- email
-            for all the accounts that meets the filterFunc criteria.
-            """
-            return ['%s %s -- %s' %
-                    (a['first_name'], a['last_name'], a['email'])
-                    for a in self._accounts if filterFunc(a)]
-
-        def _getEmailFromCombo(combo):
-            """ Return the account email assuming the format name -- email. """
-            return combo.var.get().split('--')[1].strip()
 
         def _onChange(*args):
             if hasattr(self, '_sessionLabel'):
                 _checkSessionAction()
+
+        def _onChangePreprocessing(*args):
+            """ Called when the selection is changed. """
+            i = self._prepChooser.getSelectedIndex()
+            self._switchPre.set(i)
 
         EXTRA_PAD = 30
 
@@ -348,22 +348,23 @@ class BoxWizardView(tk.Frame):
         __addLabeledWidget("Microscope", f1, bold=True)
         self._micOrder = {TITAN_A: 0, TITAN_B: 0, TALOS: 2}
         self._micChooser = f1
-        self._camChoosers = []
+        self._switchCam = Switcher(frame)
 
-        def _createChooser(*options):
-            oc = OptionChooser(frame, bg='white', optionWidth=200)
+        def _addCamChooser(*options):
+            oc = OptionChooser(self._switchCam, bg='white', optionWidth=200)
             for o in options:
                 oc.addOption(o)
-            self._camChoosers.append(oc)
+            self._switchCam.add(oc)
             oc.selectIndex(0)
             oc.onSelectionChanged(_onChange)
-            return oc
 
-        camChoosers = [_createChooser(*MIC_CAMERAS[mic]) for mic in MICROSCOPES]
+        for mic in MICROSCOPES:
+            _addCamChooser(*MIC_CAMERAS[mic])
 
-        f2 = camChoosers[0]
-        self._camRow = self._lastRow
-        __addLabeledWidget("Camera", f2)
+        #camChoosers = [_createChooser(*MIC_CAMERAS[mic]) for mic in MICROSCOPES]
+        # f2 = camChoosers[0]
+        # self._camRow = self._lastRow
+        __addLabeledWidget("Camera", self._switchCam)
 
         # --------- Load some data ---------------
         from emhub.client import DataClient
@@ -413,11 +414,6 @@ class BoxWizardView(tk.Frame):
         _addLabeledText("Owner", '')
         _addLabeledText("Creator", '')
 
-        f4 = OptionChooser(frame, bg='white', optionWidth=200)
-        f4.addOption('Scipion', self.data.getResourceFile("scipion_logo.gif"))
-        f4.addOption(LABEL_NONE, self.data.getResourceFile("none.gif"))
-        self._prepChooser = f4
-
         # --------- Session block ----------------
         self._sessionVar = tk.StringVar()
         self._sessionLabel = tk.Label(frame, textvariable=self._sessionVar,
@@ -427,7 +423,60 @@ class BoxWizardView(tk.Frame):
                            pady=(EXTRA_PAD, 0), bold=True)
 
         # --------- Preprocessing block ----------------
+        f4 = OptionChooser(frame, bg='white', optionWidth=200)
+        f4.addOption('Scipion', self.data.getResourceFile("scipion_logo.gif"))
+        f4.addOption('Scipion (custom)', self.data.getResourceFile("scipion_logo.gif"))
+        f4.addOption(LABEL_NONE, self.data.getResourceFile("none.gif"))
+        f4.onSelectionChanged(_onChangePreprocessing)
+        self._prepChooser = f4
         __addLabeledWidget("Pre-processing", f4, pady=(EXTRA_PAD, 0), bold=True)
+
+        self._switchPre = Switcher(frame, bg='white')
+
+        def _addFrame():
+            preFrame = tk.Frame(self._switchPre, bg='white')
+            self._switchPre.add(preFrame)
+            return preFrame
+
+        preFrame1 = _addFrame()
+        preOptions = [
+            ("Motion correction", ['motioncor2', 'relion - motioncor']),
+            ("CTF estimation", ['gctf', 'ctffind4'])
+        ]
+        self._preDict = {}
+
+        for row, (text, options) in enumerate(preOptions):
+            label = tk.Label(preFrame1, text=text, font="helvetica 12", bg='white')
+            label.grid(row=row, column=0, sticky='ne')
+
+            v = tk.StringVar()
+
+            for i, o in enumerate(options):
+                rb = tk.Radiobutton(preFrame1, text=o, variable=v, value=o, bg='white')
+                rb.grid(row=row, column=i+1, sticky='nw')
+
+            v.set(options[0])
+            self._preDict[text] = v
+
+        preFrame2 = _addFrame()
+        self._workflowVar = tk.StringVar()
+        entry = ttk.Entry(preFrame2, width=50, textvariable=self._workflowVar)
+        entry.grid(column=0, row=0)
+
+        def _onChoose(fileInfo):
+            self._workflowVar.set(fileInfo.getPath())
+
+        def _chooseWorkflow():
+            browser = FileBrowserWindow("Select the one of the predefined MTF files",
+                                        self.windows, getDataFile('workflows'), onSelect=_onChoose)
+            browser.show()
+
+        button = Button(preFrame2, text="Browse", command=_chooseWorkflow)
+        button.grid(column=1, row=0)
+
+        preFrame3 = _addFrame()
+
+        __addLabeledWidget('', self._switchPre)
 
         # Select Krios, TESTING
         data = self.data
@@ -442,9 +491,10 @@ class BoxWizardView(tk.Frame):
                 and all(c in parts[1] for c in '.@'))
 
     def _createSession(self):
-        mic = self._micChooser.getSelectedIndex()
-        microscope = MICROSCOPES[mic]
-        camera = MIC_CAMERAS[microscope][self._camChoosers[mic].getSelectedIndex()]
+        micIndex = self._micChooser.getSelectedIndex()
+        microscope = MICROSCOPES[micIndex]
+        camIndex = self._switchCam.widgets[micIndex].getSelectedIndex()
+        camera = MIC_CAMERAS[microscope][camIndex]
         b = self._current_booking
 
         def getPerson(key):
@@ -462,18 +512,33 @@ class BoxWizardView(tk.Frame):
         else:
             projectType = PROJ_FACILITY
 
+        prepText = self._prepChooser.getSelectedText()
+
+        preprocessing = None
+
+        if prepText.startswith("Scipion"):
+            if 'custom' in prepText:
+                preprocessing = {'workflow': self._workflowVar.get()}
+            else:
+                prepValues = {k:self._preDict[k].get() for k in self._preDict.keys()}
+                preprocessing = {'options': prepValues}
+
+        print("preprocessing", preprocessing)
+
         session = self.data.createSession(microscope, camera, projectType,
                                           cem=appLabel,
                                           pi=getPerson('owner'),
                                           user=getPerson('owner'),
                                           operator=getPerson('creator'),
-                                          preprocessing=self._prepChooser.getSelectedText()
+                                          preprocessing=preprocessing
                                           )
         return session
 
     def _onAction(self, e=None):
         try:
             session = self._createSession()
+            session.printAll()
+            return
             self.data.storeSession(session)
 
             if session.getScipionProjectName():

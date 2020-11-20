@@ -176,7 +176,8 @@ class Data:
         session.setMicroscopeDict(microscope=microscope, camera=camera)
 
         # Take only the first 3 character for the data folder
-        if preprocessing == 'Scipion':
+        session.preprocessing = preprocessing
+        if preprocessing is not None:
             session.setScipionProjectName('%s_scipion_%s'
                                           % (session.getId(),
                                              self.getNowStr()))
@@ -195,9 +196,6 @@ class Data:
         self._createFolder(session.getPath())
         self._createSessionReadme(session)
         if session.getScipionProjectName():
-            session.setScipionProjectName('%s_scipion_%s'
-                                          % (session.getId(),
-                                             self.getNowStr()))
             self._createSessionScipionProject(session)
         self.sMan.storeSession(session)
 
@@ -246,19 +244,42 @@ class Data:
         project = manager.createProject(session.getScipionProjectName(),
                                         location=path)
 
-        jsonFile = getDataFile('scipion3_krios_f3_workflow.json')
+        jsonFile = getDataFile('scipion3_workflow.json')
         project.loadProtocols(jsonFile)
 
-        protocols = project.getRuns(refresh=True)
-        for p in protocols:
-            print(p.getRunName())
-            if p.getClassName() == 'ProtImportMovies':
-                p.setAttributesFromDict({
-                    'filesPath': path,
-                    'filesPattern': CAMERA_SETTINGS[camera][PATTERN]
-                }, setBasic=False)
-                project.saveProtocol(p)
-                print("  -> Updated. ")
+        runsGraph = project.getRunsGraph(refresh=True)
+        protImport = nodeCompress = None
+
+        for n in runsGraph.getNodes():
+            p = n.run
+
+            if p is None:
+                continue
+
+            cn = p.getClassName()
+            if cn == 'ProtImportMovies':
+                protImport = p
+            elif cn == 'ProtRelionCompressMovies':
+                nodeCompress = n
+
+        # Update import parameters
+        protImport.setAttributesFromDict({
+            'filesPath': path,
+            'filesPattern': CAMERA_SETTINGS[camera][PATTERN]
+        }, setBasic=False)
+        project.saveProtocol(protImport)
+
+        # There is no need to compress if we are not using the
+        # falcon3, let's remove that step from the workflow
+        # and update the input for the dependent steps
+        if camera != FALCON3:
+            for c in nodeCompress.getChilds():
+                prot = c.run
+                prot.inputMovies.set(protImport)
+                prot.inputMovies.setExtended('outputMovies')
+                project.saveProtocol(prot)
+
+            project.deleteProtocol(nodeCompress.run)
 
         return
 
