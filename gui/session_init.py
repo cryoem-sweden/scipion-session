@@ -247,19 +247,6 @@ class BoxWizardView(tk.Frame):
             return combo
 
         def _getSessionAction():
-            def checkPiAndUser():
-                if self._piCombo.var.get() == LABEL_SELECT_PI:
-                    return LABEL_SELECT_PI
-
-                userValue = self._userCombo.var.get()
-                if not userValue or not self._isValidUserStr(userValue):
-                    return LABEL_SELECT_USER
-
-            def checkOperator():
-                operator = self._operatorCombo.var.get()
-                if not self._isValidUserStr(operator):
-                    return "Select operator"
-
             micIndex = self._micChooser.getSelectedIndex()
             if micIndex is None:
                 return "Select Microscope"
@@ -478,17 +465,9 @@ class BoxWizardView(tk.Frame):
 
         __addLabeledWidget('', self._switchPre)
 
-        # Select Krios, TESTING
-        data = self.data
-        f1.selectIndex(self._micOrder[data.microscope])
-        # Select Scipion as default for pre-processing
         f4.selectIndex(0)
-
-    def _isValidUserStr(self, userStr):
-        """ Valid user string is:  Name -- email """
-        parts = userStr.split('--')
-        return (len(parts) == 2 and all(p.strip() for p in parts)
-                and all(c in parts[1] for c in '.@'))
+        f1.selectIndex(self._micOrder[self.data.microscope])
+        # Select Scipion as default for pre-processing
 
     def _createSession(self):
         micIndex = self._micChooser.getSelectedIndex()
@@ -523,8 +502,6 @@ class BoxWizardView(tk.Frame):
                 prepValues = {k:self._preDict[k].get() for k in self._preDict.keys()}
                 preprocessing = {'options': prepValues}
 
-        print("preprocessing", preprocessing)
-
         session = self.data.createSession(microscope, camera, projectType,
                                           cem=appLabel,
                                           pi=getPerson('owner'),
@@ -537,8 +514,6 @@ class BoxWizardView(tk.Frame):
     def _onAction(self, e=None):
         try:
             session = self._createSession()
-            session.printAll()
-            return
             self.data.storeSession(session)
 
             if session.getScipionProjectName():

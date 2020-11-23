@@ -126,7 +126,7 @@ FALCON3 = 'Falcon3'
 CETA = 'Ceta'
 CETA_D = 'Ceta-D'
 
-CAMERAS = [K2, FALCON3]
+CAMERAS = [K2, K3, FALCON3]
 
 MIC_CAMERAS = {
     TITAN_A: [K3, FALCON3, CETA],
@@ -146,8 +146,11 @@ CAMERA_SETTINGS = {
     K2: {
         PATTERN: "k2_frames/Images-Disc*/GridSquare_*/Data/FoilHole_*.mrc"
     },
+    K3: {
+        PATTERN: "k3_frames/Images-Disc*/GridSquare_*/Data/FoilHole_*.mrc"
+    },
     FALCON3: {
-        PATTERN: "falcon3_frames/Images-Disc*/GridSquare_*/Data/*Fractions.mrc",
+        PATTERN: "f3_frames/Images-Disc*/GridSquare_*/Data/*Fractions.mrc",
     }
 }
 

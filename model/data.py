@@ -235,7 +235,6 @@ class Data:
         return DEFAULTS.get(key, default)
 
     def _createSessionScipionProject(self, session):
-
         microscope = session.getMicroscope()
         camera = session.getCamera()
         path = session.getPath()
@@ -244,236 +243,62 @@ class Data:
         project = manager.createProject(session.getScipionProjectName(),
                                         location=path)
 
-        jsonFile = getDataFile('scipion3_workflow.json')
+        # A custom workflow can be selected and then we will not modify it
+        if 'workflow' in session.preprocessing:
+            jsonFile = session.preprocessing['workflow']
+            project.loadProtocols(jsonFile)
+            return
+
+        # If not, then we will customize the generic workflow
+
+        jsonFile = getDataFile('workflows/scipion3_generic_workflow.json')
         project.loadProtocols(jsonFile)
-
         runsGraph = project.getRunsGraph(refresh=True)
-        protImport = nodeCompress = None
 
+        # Create a dict with class names and nodes for easier access
+        nodeNames = {}
         for n in runsGraph.getNodes():
             p = n.run
+            if p is not None:
+                nodeNames[p.getClassName()] = n
 
-            if p is None:
-                continue
-
-            cn = p.getClassName()
-            if cn == 'ProtImportMovies':
-                protImport = p
-            elif cn == 'ProtRelionCompressMovies':
-                nodeCompress = n
+        nodeImport = nodeNames['ProtImportMovies']
+        nodeCompress = nodeNames['ProtRelionCompressMovies']
+        nodeRelionMc = nodeNames['ProtRelionMotioncor']
+        nodeMc = nodeNames['ProtMotionCorr']
+        nodeCtffind = nodeNames['CistemProtCTFFind']
+        nodeGctf = nodeNames['ProtGctf']
 
         # Update import parameters
+        protImport = nodeImport.run
         protImport.setAttributesFromDict({
             'filesPath': path,
             'filesPattern': CAMERA_SETTINGS[camera][PATTERN]
         }, setBasic=False)
         project.saveProtocol(protImport)
 
+        def _moveChilds(parent, newParent, inputName, outputName):
+            for c in parent.getChilds():
+                prot = c.run
+                inputObj = getattr(prot, inputName)
+                inputObj.set(newParent.run)
+                inputObj.setExtended(outputName)
+                project.saveProtocol(prot)
+
         # There is no need to compress if we are not using the
         # falcon3, let's remove that step from the workflow
         # and update the input for the dependent steps
         if camera != FALCON3:
-            for c in nodeCompress.getChilds():
-                prot = c.run
-                prot.inputMovies.set(protImport)
-                prot.inputMovies.setExtended('outputMovies')
-                project.saveProtocol(prot)
-
+            _moveChilds(nodeCompress, nodeImport,
+                        'inputMovies', 'outputMovies')
             project.deleteProtocol(nodeCompress.run)
 
-        return
+        opts = session.preprocessing['options']
+        if opts['Motion correction'] == 'motioncor2':
+            _moveChilds(nodeRelionMc, nodeMc,
+                        'inputMicrographs', 'outputMicrographsDoseWeighted')
 
-        self.lastProt = None
+        if opts['CTF estimation'] == 'gctf':
+            _moveChilds(nodeCtffind, nodeGctf,
+                        "ctfRelations", "outputCTF")
 
-        smtpServer = self._getConfValue(SMTP_SERVER, '')
-        smtpFrom = self._getConfValue(SMTP_FROM, '')
-        smtpTo = self._getConfValue(SMTP_TO, '')
-        doMail = False
-        doPublish = False
-
-        microscope = session.getMicroscope()
-        camera = session.getCamera()
-
-        def getMicSetting(key):
-            return MICROSCOPES_SETTINGS[microscope][key]
-
-        cs = getMicSetting(CS)
-        voltage = getMicSetting(VOLTAGE)
-        # For now lets use only one GPU, the first in the list
-        gpuId = str(getMicSetting(GPU)[0])
-
-        isK2 = camera == K2
-        pattern = CAMERA_SETTINGS[camera][PATTERN]
-
-        # if camera == FALCON3:
-        #     basePath = MIC_CAMERAS_SETTINGS[microscope][camera][MOVIES_FOLDER]
-        #     filesPath = os.path.join(basePath, projId) + "_epu"
-        # else:
-        filesPath = session.getPath()
-
-        protImport = project.newProtocol(pwem.ProtImportMovies,
-                                         objLabel='Import movies',
-                                         filesPath=filesPath,
-                                         filesPattern=pattern,
-                                         voltage=voltage,
-                                         sphericalAberration=cs,
-                                         samplingRate=None,
-                                         magnification=None,
-                                         dataStreaming=True,
-                                         timeout=72000,
-                                         inputIndividualFrames=False,
-                                         stackFrames=False,
-                                         writeMoviesInProject=True
-                                         )
-
-        # Should I publish html report?
-        if doPublish == 1:
-            publish = self._getConfValue('HTML_PUBLISH')
-            #print("\n\nReport available at URL: %s/%s\n\n"
-            #      %('http://scipion.cnb.csic.es/scipionbox',projName))
-        else:
-            publish = ''
-
-        protMonitor = project.newProtocol(pwem.ProtMonitorSummary,
-                                          objLabel='Summary Monitor',
-                                          doMail=doMail,
-                                          emailFrom=smtpFrom,
-                                          emailTo=smtpTo,
-                                          smtp=smtpServer,
-                                          publishCmd=publish)
-
-        def _saveProtocol(prot, movies=True, monitor=True):
-            if movies:
-                prot.inputMovies.set(self.lastProt)
-                prot.inputMovies.setExtended('outputMovies')
-            project.saveProtocol(prot)
-            self.lastProt = prot
-            if monitor:
-                protMonitor.inputProtocols.append(prot)
-
-        def _newProtocol(*args, **kwargs):
-            return project.newProtocol(*args, **kwargs)
-
-        _saveProtocol(protImport, movies=False)
-
-        useMC = True
-        useOF = False
-        useSM = False
-        useCTF = True
-        useGCTF = True
-
-        kwargs = {}
-
-        protMC = None
-        if useMC:
-            # Create motioncorr
-            ProtMotionCorr = pwutils.importFromPlugin('motioncorr.protocols', 'ProtMotionCorr')
-            protMC = _newProtocol(ProtMotionCorr,
-                                 objLabel='Motioncorr',
-                                 useMotioncor2=True,
-                                 doComputeMicThumbnail=True,
-                                 computeAllFramesAvg=True,
-                                 gpuList=gpuId,
-                                 extraProtocolParams='--use_worker_thread',
-                                 **kwargs)
-            _saveProtocol(protMC)
-
-        if useOF:
-            # Create Optical Flow protocol
-            XmippProtOFAlignment = pwutils.importFromPlugin('xmipp3.protocols', 'XmippProtOFAlignment')
-            protOF = _newProtocol(XmippProtOFAlignment,
-                                 objLabel='Optical Flow',
-                                 doSaveMovie=useSM,
-                                 **kwargs)
-            _saveProtocol(protOF)
-
-        if useSM:
-            ProtSummovie = pwutils.importFromPlugin('grigoriefflab.protocols', 'ProtSummovie')
-            protSM = _newProtocol(ProtSummovie,
-                                 objLabel='Summovie',
-                                 cleanInputMovies=useOF,
-                                 numberOfThreads=1,
-                                 **kwargs)
-            _saveProtocol(protSM)
-
-        lastBeforeCTF = self.lastProt
-        lowRes, highRes = 0.03, 0.42
-
-        protCTF = None
-        if useCTF:
-            ProtCTFFind = pwutils.importFromPlugin('grigoriefflab.protocols', 'ProtCTFFind')
-            protCTF = _newProtocol(ProtCTFFind,
-                                  objLabel='Ctffind',
-                                  numberOfThreads=1,
-                                  lowRes=lowRes, highRes=highRes)
-            protCTF.inputMicrographs.set(lastBeforeCTF)
-            protCTF.inputMicrographs.setExtended('outputMicrographs')
-            _saveProtocol(protCTF, movies=False)
-
-        if useGCTF:
-            ProtGctf = pwutils.importFromPlugin('gctf.protocols', 'ProtGctf')
-            protGCTF = _newProtocol(ProtGctf,
-                                    objLabel='Gctf',
-                                    lowRes=lowRes, highRes=highRes,
-                                    windowSize=1024,
-                                    maxDefocus=9.0,
-                                    doEPA=False,
-                                    doHighRes=True,
-                                    gpuList=gpuId)
-            protGCTF.inputMicrographs.set(lastBeforeCTF)
-            protGCTF.inputMicrographs.setExtended('outputMicrographs')
-            _saveProtocol(protGCTF, movies=False)
-            protCTF = protGCTF
-
-        project.saveProtocol(protMonitor)
-
-        if protCTF is not None and protMC is not None:
-            XmippProtParticlePicking = pwutils.importFromPlugin('xmipp3.protocols', 'XmippProtParticlePicking')
-            XmippParticlePickingAutomatic = pwutils.importFromPlugin('xmipp3.protocols',
-                                                                     'XmippParticlePickingAutomatic')
-            # Include picking, extraction and 2D
-            protPick1 = _newProtocol(XmippProtParticlePicking,
-                                     objLabel='xmipp3 - supervised')
-            protPick1.inputMicrographs.set(protMC)
-            protPick1.inputMicrographs.setExtended('outputMicrographsDoseWeighted')
-            _saveProtocol(protPick1, movies=False)
-
-            protPick2 = _newProtocol(XmippParticlePickingAutomatic,
-                                     objLabel='xmipp3 - automatic',
-                                     streamingSleepOnWait=60,
-                                     streamingBatchSize=0)
-            protPick2.xmippParticlePicking.set(protPick1)
-            _saveProtocol(protPick2, movies=False)
-
-            ProtRelionExtractParticles = pwutils.importFromPlugin('relion.protocols', 'ProtRelionExtractParticles')
-            ProtRelionClassify2D = pwutils.importFromPlugin('relion.protocols', 'ProtRelionClassify2D')
-
-            protExtract = _newProtocol(ProtRelionExtractParticles,
-                                       objLabel='relion - extract particles',
-                                       doInvert=True,
-                                       doNormalize=True,
-                                       streamingSleepOnWait=60,
-                                       streamingBatchSize=0)
-            protExtract.inputCoordinates.set(protPick2)
-            protExtract.inputCoordinates.setExtended('outputCoordinates')
-            _saveProtocol(protExtract, movies=False)
-
-            prot2D = _newProtocol(ProtRelionClassify2D,
-                                  objLabel='relion 2d - TEMPLATE',
-                                  numberOfClasses=100,
-                                  doGpu=True,
-                                  extraParams="--maxsig 10",
-                                  numberOfMpi=5,
-                                  numberOfThreads=2)
-            prot2D.inputParticles.set(protExtract)
-            prot2D.inputParticles.setExtended('outputParticles')
-            _saveProtocol(prot2D, movies=False)
-
-            protStreamer = _newProtocol(pwem.ProtMonitor2dStreamer,
-                                        objLabel='scipion - 2d streamer',
-                                        batchSize=20000)
-
-            protStreamer.inputParticles.set(protExtract)
-            protStreamer.inputParticles.setExtended('outputParticles')
-            protStreamer.input2dProtocol.set(prot2D)
-            _saveProtocol(protStreamer, movies=False)
