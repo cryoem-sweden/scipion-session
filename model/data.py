@@ -297,6 +297,9 @@ class Data:
         if opts['Motion correction'] == 'motioncor2':
             _moveChilds(nodeRelionMc, nodeMc,
                         'inputMicrographs', 'outputMicrographsDoseWeighted')
+            protCtffind = nodeCtffind.run
+            protCtffind.usePowerSpectra.set(False)
+            project.saveProtocol(protCtffind)
 
         if opts['CTF estimation'] == 'gctf':
             _moveChilds(nodeCtffind, nodeGctf,

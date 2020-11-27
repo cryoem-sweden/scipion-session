@@ -427,8 +427,8 @@ class BoxWizardView(tk.Frame):
 
         preFrame1 = _addFrame()
         preOptions = [
-            ("Motion correction", ['motioncor2', 'relion - motioncor']),
-            ("CTF estimation", ['gctf', 'ctffind4'])
+            ("Motion correction", ['relion - motioncor', 'motioncor2']),
+            ("CTF estimation", ['ctffind4', 'gctf'])
         ]
         self._preDict = {}
 

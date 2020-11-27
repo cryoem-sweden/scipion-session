@@ -13,7 +13,7 @@ import pyworkflow.utils as pwutils
 
 
 def usage(error):
-    print """
+    print("""
     ERROR: %s
 
     Usage: copy_falcon3_data.py FALCON3_EPU_FOLDER [PROJECT_ID]
@@ -22,12 +22,12 @@ def usage(error):
 
         PROJECT_ID: This parameter is optional and will be inferred from the FALCON3_EPU_FOLDER
             but it will need to be provided if the convention was not followed.
-    """ % error
+    """ % error)
     sys.exit(1)
 
 
 def system(cmd):
-    print cmd
+    print(cmd)
     os.system(cmd)
 
 
@@ -104,7 +104,7 @@ if __name__ == "__main__":
 
     outputFolder = '/data/staging/%s/%s/f3_frames' % (code.group, str(code))
 
-    print "Output folder: %s" % outputFolder
+    print("Output folder: %s" % outputFolder)
     pwutils.makePath(outputFolder)
 
     while True:
