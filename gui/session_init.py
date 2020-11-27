@@ -482,7 +482,12 @@ class BoxWizardView(tk.Frame):
 
         # Take only the first part of the application label
         # (because it can contains the alias in parenthesis)
-        appLabel = b['application_label'].split()[0].lower()
+        m = re.search("\([^,]+(,([^,]*))\)", b['title'])
+
+        if m is not None:
+            appLabel = m.group(2).lower().strip()
+        else:
+            appLabel = 'fac'
 
         if appLabel.startswith('cem'):
             projectType = PROJ_NATIONAL
