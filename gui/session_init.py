@@ -118,6 +118,7 @@ class BoxWizardView(tk.Frame):
         self.root = windows.root
         self.vars = {}
         self.checkvars = []
+        self._createStatus = 'disabled'
         # Regular expression to validate username and sample name
         self.re = re.compile('\A[a-zA-Z][a-zA-Z0-9_-]+\Z')
 
@@ -170,7 +171,7 @@ class BoxWizardView(tk.Frame):
         btn = HotButton(btnFrame, text="Create New Session",
                         font=self.bigFontBold,
                         command=self._onAction,
-                        state='disabled')
+                        state=self._createStatus)
         btn.grid(row=0, column=1, sticky='ne', padx=10, pady=10)
         self._newSessionBtn = btn
 
@@ -258,7 +259,7 @@ class BoxWizardView(tk.Frame):
             resourceId = self._micChooser.getSelectedIndex() + 1
             if resourceId in self._bookings:
                 b = self._bookings[resourceId]
-                values = {'CEM': b['application_label'],
+                values = {'CEM': b['application_code'],
                           'Owner': b['owner']['name'],
                           'Creator': b['creator']['name']
                           }
@@ -286,9 +287,10 @@ class BoxWizardView(tk.Frame):
 
             self._sessionLabel.config(fg='red' if action else 'green')
             self._sessionVar.set(msg)
+            self._createStatus = 'disabled' if action else 'normal'
             btn = getattr(self, '_newSessionBtn', None)
             if btn is not None:
-                btn.config(state='disabled' if action else 'normal')
+                btn.config(state=self._createStatus)
 
         class Switcher(tk.Frame):
             def __init__(self, *args, **kwargs):
@@ -381,9 +383,16 @@ class BoxWizardView(tk.Frame):
 
             return users[user_id]
 
+        def get_application_code(b):
+            # Take only the first part of the application label
+            # (because it can contains the alias in parenthesis)
+            m = re.search("\([^,]+(,([^,]*))\)", b['title'])
+            return 'fac' if m is None else m.group(2).upper().strip()
+
         for b in self._bookings.values():
             b['owner'] = get_user(b['owner']['id'])
             b['creator'] = get_user(b['creator']['id'])
+            b['application_code'] = get_application_code(b)
 
         dc.logout()
 
@@ -468,6 +477,7 @@ class BoxWizardView(tk.Frame):
         f4.selectIndex(0)
         f1.selectIndex(self._micOrder[self.data.microscope])
         # Select Scipion as default for pre-processing
+        _checkSessionAction()
 
     def _createSession(self):
         micIndex = self._micChooser.getSelectedIndex()
@@ -480,14 +490,7 @@ class BoxWizardView(tk.Frame):
             p = b[key]
             return Person(name=p['name'], email=p['email'])
 
-        # Take only the first part of the application label
-        # (because it can contains the alias in parenthesis)
-        m = re.search("\([^,]+(,([^,]*))\)", b['title'])
-
-        if m is not None:
-            appLabel = m.group(2).lower().strip()
-        else:
-            appLabel = 'fac'
+        appLabel = b['application_code'].lower()
 
         if appLabel.startswith('cem'):
             projectType = PROJ_NATIONAL
