@@ -335,7 +335,7 @@ class BoxWizardView(tk.Frame):
         f1.addOption('Krios β', self.data.getResourceFile("titan_small.gif"))
         f1.addOption('Talos', self.data.getResourceFile("talos_small.gif"))
         __addLabeledWidget("Microscope", f1, bold=True)
-        self._micOrder = {TITAN_A: 0, TITAN_B: 0, TALOS: 2}
+        self._micOrder = {TITAN_A: 0, TITAN_B: 1, TALOS: 2}
         self._micChooser = f1
         self._switchCam = Switcher(frame)
 
