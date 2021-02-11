@@ -155,7 +155,7 @@
         "patchOverlap": 0,
         "group": 1,
         "tol": 0.5,
-        "doSaveUnweightedMic": true,
+        "doSaveUnweightedMic": false,
         "extraParams2": "",
         "gainRot": 0,
         "gainFlip": 0,

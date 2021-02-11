@@ -137,7 +137,7 @@ MIC_CAMERAS = {
 # Configuration dependent on Microscopes
 MICROSCOPES_SETTINGS = {
     TITAN_A: {CS: 2.7, VOLTAGE: 300, GPU: [0]},
-    TITAN_A: {CS: 2.7, VOLTAGE: 300, GPU: [0]},
+    TITAN_B: {CS: 2.7, VOLTAGE: 300, GPU: [2]},
     TALOS: {CS: 2.7, VOLTAGE: 200, GPU: [1]}
 }
 
@@ -158,18 +158,34 @@ CAMERA_SETTINGS = {
 MIC_CAMERAS_SETTINGS = {
     TITAN_A: {
         K3: {
-            MOVIES_FOLDER: DATA_FOLDER
+            MOVIES_FOLDER: DATA_FOLDER,
+            PATTERN: "k3_frames_a/Images-Disc*/GridSquare_*/Data/FoilHole_*ractions.tiff"
         },
         FALCON3: {
-            MOVIES_FOLDER: DATA_FOLDER
+            MOVIES_FOLDER: DATA_FOLDER,
+            PATTERN: "f3_frames/Images-Disc*/GridSquare_*/Data/FoilHole_*ractions.mrc",
         },
         CETA: {
             MOVIES_FOLDER: DATA_FOLDER
         }
     },
+    TITAN_B: {
+            K3: {
+                MOVIES_FOLDER: DATA_FOLDER,
+                PATTERN: "k3_frames_b/Images-Disc*/GridSquare_*/Data/FoilHole_*ractions.tiff"
+            },
+            CETA_D: {
+                MOVIES_FOLDER: DATA_FOLDER
+            }
+        },
     TALOS: {
         FALCON3: {
-            MOVIES_FOLDER: DATA_FOLDER
+            MOVIES_FOLDER: DATA_FOLDER,
+            PATTERN: "f3_frames/Images-Disc*/GridSquare_*/Data/FoilHole_*ractions.mrc",
+        },
+        K2: {
+            MOVIES_FOLDER: DATA_FOLDER,
+            PATTERN: "k2_frames/Images-Disc*/GridSquare_*/Data/FoilHole_*.mrc"
         }
     }
 }
