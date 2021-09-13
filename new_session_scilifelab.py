@@ -51,7 +51,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Assume the data folder is in the same place as this script
-    dataArgs = {'dataFolder': os.path.join(os.path.dirname(__file__), 'data'),
+    dataArgs = {'dataFolder': getDataFile(),
                 'microscope': MICROSCOPES_ALIAS[args.microscope.lower()],
                 'date': parseDate(args.day) if args.day else dt.datetime.now()
                 }
