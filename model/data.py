@@ -205,6 +205,7 @@ class Data:
         # Create the project path
         sys.stdout.write("Creating path '%s' ... " % p)
         pwutils.makePath(p)
+        os.chmod(p, 0o0775)
         sys.stdout.write("DONE\n")
 
     def _createSessionReadme(self, session):
