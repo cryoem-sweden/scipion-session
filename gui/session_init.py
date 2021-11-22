@@ -525,8 +525,11 @@ class BoxWizardView(tk.Frame):
             self.data.storeSession(session)
 
             if session.getScipionProjectName():
-                os.system('scipion project %s &'
-                          % session.getScipionProjectName())
+                cmd = '. /usr/share/modules/init/sh && '
+                cmd += 'module load scipion && '
+                cmd += 'scipion --config /opt/cryoem/scipion/3.0.0/config/scipion.conf project %s &' % session.getScipionProjectName()
+                print(cmd)
+                os.system(cmd)
 
             self.windows.close()
 

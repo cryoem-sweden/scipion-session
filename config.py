@@ -78,7 +78,7 @@ LABELS = {
 }
 
 DEFAULTS = {
-    DATA_FOLDER: '/data/staging',
+    DATA_FOLDER: '/mnt/cephfs/processing',
     SCIPION_PREPROCESSING: True,
     STREAMING: True,
     MOTIONCORR: False,
@@ -197,7 +197,7 @@ SESSIONS_FILE = 'sessions.sqlite'
 
 import os
 # Assume the data folder is in the same place as this script
-FILES_DATA_FOLDER = os.path.join(os.path.dirname(__file__), 'data')
+FILES_DATA_FOLDER = os.environ.get('SCIPION_SESSION_DATA', os.path.join(os.path.dirname(__file__), 'data'))
 
 
 def getDataFile(*paths):
